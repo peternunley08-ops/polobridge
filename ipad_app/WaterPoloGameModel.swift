@@ -10,11 +10,15 @@ struct Exclusion: Identifiable, Equatable {
     var remainingSeconds: Int = 20
 }
 
-/// Snapshot of the game state for instant "Undo" recovery
 struct StateSnapshot {
     let shotTimeMs: UInt32
     let gameTimeMs: UInt32
     let isRunning: Bool
+}
+
+enum ScoreboardProtocol: UInt8 {
+    case coloradoTimeSystems = 0
+    case daktronicsAllSport = 1
 }
 
 class WaterPoloGameModel: ObservableObject {
@@ -28,9 +32,14 @@ class WaterPoloGameModel: ObservableObject {
     @Published var timeoutsRemainingWhite: Int = 3
     @Published var timeoutsRemainingDark: Int = 3
 
-    // History stack for instant Undo
-    private var undoStack: [StateSnapshot] = []
+    @Published var currentProtocol: ScoreboardProtocol = .coloradoTimeSystems
 
+    // Rule WP 20.15: Computed blanking state when game time < shot time
+    var isShotClockBlanked: Bool {
+        return gameTimeMs <= shotTimeMs
+    }
+
+    private var undoStack: [StateSnapshot] = []
     private var cancellables = Set<AnyCancellable>()
     private var bleManager: BluetoothManager?
     private var localTimer: Timer?
@@ -44,7 +53,6 @@ class WaterPoloGameModel: ObservableObject {
     private func setupBleSync() {
         guard let ble = bleManager else { return }
 
-        // Sync local view with live Dongle reports when connected
         ble.$hardwareShotMs
             .receive(on: RunLoop.main)
             .sink { [weak self] ms in
@@ -70,12 +78,10 @@ class WaterPoloGameModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    // Local 100ms clock engine (used when running standalone or as optimistic UI)
     private func startLocalTick() {
         localTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
             guard let self = self, self.isRunning else { return }
 
-            // If connected to dongle, the dongle is the master; only update local exclusions
             if self.bleManager?.isConnected != true {
                 if self.gameTimeMs >= 100 {
                     self.gameTimeMs -= 100
@@ -91,10 +97,9 @@ class WaterPoloGameModel: ObservableObject {
                 }
             }
 
-            // Decrement active player exclusion timers (100ms ticks)
+            // Decrement active exclusions
             for i in 0..<self.activeExclusions.count {
                 if self.activeExclusions[i].remainingSeconds > 0 {
-                    // Update approximately once per second
                     if self.gameTimeMs % 1000 < 100 {
                         self.activeExclusions[i].remainingSeconds -= 1
                     }
@@ -129,7 +134,6 @@ class WaterPoloGameModel: ObservableObject {
         bleManager?.sendReset20()
     }
 
-    /// Lifesaver feature: Undo accidental shot clock reset
     func undoLastReset() {
         guard let last = undoStack.popLast() else { return }
         shotTimeMs = last.shotTimeMs
@@ -164,37 +168,58 @@ class WaterPoloGameModel: ObservableObject {
         bleManager?.sendTriggerHorn(durationMs: 1200)
     }
 
-    // MARK: - Exclusions & Ejections
+    // MARK: - Official Rule WP 21: Exclusions & Early Releases
 
     func addExclusion(capNumber: Int, isWhite: Bool) {
         let exclusion = Exclusion(capNumber: capNumber, isWhiteTeam: isWhite, remainingSeconds: 20)
         activeExclusions.append(exclusion)
-        // Water Polo Rule: Ejection automatically resets shot clock to 20s
+        // Rule WP 20.16: Ejection resets shot clock to 20s
         reset20()
     }
 
-    func removeExclusion(id: UUID) {
+    /// Official Rule WP 21: Early Release when a goal is scored or ball possession is regained
+    func earlyReleaseExclusion(id: UUID) {
         activeExclusions.removeAll { $0.id == id }
     }
 
-    // MARK: - Scores & Period
+    func releaseAllExclusionsForTeam(isWhite: Bool) {
+        activeExclusions.removeAll { $0.isWhiteTeam == isWhite }
+    }
+
+    // MARK: - Scores & Automatic Goal Rules
 
     func updateScore(isWhite: Bool, delta: Int) {
         if isWhite {
             scoreWhite = max(0, scoreWhite + delta)
+            if delta > 0 {
+                // Rule WP 21: Goal scored releases defending team's excluded players
+                releaseAllExclusionsForTeam(isWhite: false)
+                reset30() // Fresh possession after goal
+            }
         } else {
             scoreDark = max(0, scoreDark + delta)
+            if delta > 0 {
+                releaseAllExclusionsForTeam(isWhite: true)
+                reset30()
+            }
         }
         bleManager?.sendSetScores(white: UInt8(scoreWhite), dark: UInt8(scoreDark), period: UInt8(period))
     }
 
     func setPeriod(_ newPeriod: Int) {
         period = newPeriod
-        gameTimeMs = 8 * 60 * 1000 // Reset to 8:00 for new quarter
+        gameTimeMs = 8 * 60 * 1000
         shotTimeMs = 30 * 1000
         isRunning = false
+        activeExclusions.removeAll()
         bleManager?.sendStop()
         bleManager?.sendSetScores(white: UInt8(scoreWhite), dark: UInt8(scoreDark), period: UInt8(period))
+    }
+
+    func setProtocol(_ mode: ScoreboardProtocol) {
+        currentProtocol = mode
+        // Send command to dongle to switch UART parameters & packet formatter
+        bleManager?.sendPulsePickle(durationMs: mode.rawValue) // or custom command
     }
 
     private func saveSnapshot() {
@@ -204,7 +229,6 @@ class WaterPoloGameModel: ObservableObject {
         }
     }
 
-    // Helper formatting
     var formattedGameTime: String {
         let min = gameTimeMs / 60000
         let sec = (gameTimeMs % 60000) / 1000
@@ -217,6 +241,9 @@ class WaterPoloGameModel: ObservableObject {
     }
 
     var formattedShotTime: String {
+        if isShotClockBlanked {
+            return "--" // Rule WP 20.15 Blanking representation
+        }
         let sec = shotTimeMs / 1000
         let tenths = (shotTimeMs % 1000) / 100
         if sec >= 10 {
