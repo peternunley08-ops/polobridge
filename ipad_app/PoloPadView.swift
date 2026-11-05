@@ -1,28 +1,153 @@
 import SwiftUI
 
 // =============================================================================
-// POLOPAD - FIRST-PARTY APPLE DESIGN SYSTEM FOR IPADOS
-// Adheres to Apple Human Interface Guidelines (HIG):
-// - Adaptive Material Glassmorphism (.regularMaterial, .ultraThinMaterial)
-// - Monospaced Tabular Numerals (.monospacedDigit())
-// - Tactile Spring Button Physics with Haptic Audio Engine
-// - Semantic System Colors & Squircle Continuous Radii
+// POLOPAD PRO - TACTILE INSTRUMENT INTERFACE
+// Deep 3D Physical Architecture:
+// - Extruded Tactile Pushbuttons with Mechanical Key Travel & Beveled Bezels
+// - Recessed Optical-Glass Instrument Chambers with Inset Ambient Shadows
+// - Machine-Milled Studio Switcher Design with Anodized Highlights
+// - Dual-Layer Segment Backlighting & Acoustic Click Engine
 // =============================================================================
 
-// MARK: - Custom Tactile Button Style (Apple Spring Physics)
-struct AppleTactileButtonStyle: ButtonStyle {
-    var hapticStyle: UIImpactFeedbackGenerator.FeedbackStyle = .medium
-    var scaleDown: CGFloat = 0.96
+// MARK: - 3D Mechanical Key Actuator Button Style
+struct Mechanical3DButtonStyle: ButtonStyle {
+    var primaryColor: Color
+    var shadowColor: Color
+    var extrusionHeight: CGFloat = 8
+    var haptic: UIImpactFeedbackGenerator.FeedbackStyle = .heavy
 
     func makeBody(configuration: Configuration) -> some View {
+        let isPressed = configuration.isPressed
+
         configuration.label
-            .scaleEffect(configuration.isPressed ? scaleDown : 1.0)
-            .animation(.spring(response: 0.22, dampingFraction: 0.65), value: configuration.isPressed)
-            .onChange(of: configuration.isPressed) { isPressed in
-                if isPressed {
-                    UIImpactFeedbackGenerator(style: hapticStyle).impactOccurred()
+            .offset(y: isPressed ? extrusionHeight - 2 : 0)
+            .background(
+                ZStack {
+                    // Bottom 3D Extrusion Shadow Block (The "Body" of the button)
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(shadowColor)
+                        .offset(y: extrusionHeight)
+
+                    // Button Surface with Specular Bevel Highlight
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    primaryColor.opacity(isPressed ? 0.85 : 1.0),
+                                    shadowColor
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .offset(y: isPressed ? extrusionHeight - 2 : 0)
+                        .overlay(
+                            // 1px Razor Bevel Edge Light
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [Color.white.opacity(0.4), Color.white.opacity(0.05)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    ),
+                                    lineWidth: 1.5
+                                )
+                                .offset(y: isPressed ? extrusionHeight - 2 : 0)
+                        )
+                }
+            )
+            .shadow(
+                color: Color.black.opacity(isPressed ? 0.3 : 0.65),
+                radius: isPressed ? 4 : 14,
+                y: isPressed ? 4 : 12
+            )
+            .animation(.spring(response: 0.16, dampingFraction: 0.55), value: isPressed)
+            .onChange(of: isPressed) { pressed in
+                if pressed {
+                    UIImpactFeedbackGenerator(style: haptic).impactOccurred()
                 }
             }
+    }
+}
+
+// MARK: - Tactile Studio Toggle Pill Style
+struct StudioToggleButtonStyle: ButtonStyle {
+    var isSelected: Bool
+    var activeColor: Color = .blue
+
+    func makeBody(configuration: Configuration) -> some View {
+        let isPressed = configuration.isPressed
+
+        configuration.label
+            .offset(y: isPressed ? 2 : (isSelected ? 1 : 0))
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(
+                        isSelected
+                            ? LinearGradient(colors: [activeColor, activeColor.opacity(0.8)], startPoint: .top, endPoint: .bottom)
+                            : LinearGradient(colors: [Color(white: 0.18), Color(white: 0.12)], startPoint: .top, endPoint: .bottom)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(
+                                LinearGradient(
+                                    colors: isSelected
+                                        ? [Color.white.opacity(0.45), Color.clear]
+                                        : [Color.white.opacity(0.15), Color.black.opacity(0.4)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+            )
+            .shadow(
+                color: isSelected ? activeColor.opacity(0.4) : Color.black.opacity(0.4),
+                radius: isSelected ? 8 : 4,
+                y: isSelected ? 3 : 2
+            )
+            .animation(.easeOut(duration: 0.12), value: isPressed)
+    }
+}
+
+// MARK: - Recessed Instrument Chamber View Modifier
+struct RecessedChamberModifier: ViewModifier {
+    var cornerRadius: CGFloat = 24
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                ZStack {
+                    // Deep optical chamber floor
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color(red: 0.03, green: 0.04, blue: 0.06))
+
+                    // Machine-Milled Outer Chamfer (Bottom light bounce + Top inner shadow)
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.black.opacity(0.85), Color.white.opacity(0.12)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 2
+                        )
+                }
+            )
+            // Outer drop shadow on the bezel
+            .shadow(color: Color.black.opacity(0.7), radius: 16, x: 0, y: 8)
+            .overlay(
+                // Inset Ambient Cavity Rim
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.black.opacity(0.6), lineWidth: 3)
+                    .blur(radius: 2)
+            )
+    }
+}
+
+extension View {
+    func recessedChamber(cornerRadius: CGFloat = 24) -> some View {
+        self.modifier(RecessedChamberModifier(cornerRadius: cornerRadius))
     }
 }
 
@@ -33,9 +158,6 @@ struct PoloPadView: View {
 
     @State private var showingExclusionSheet: Bool = false
     @State private var exclusionTargetIsWhite: Bool = true
-    @State private var showingTimeEditPopover: Bool = false
-    @State private var editMinutes: Int = 8
-    @State private var editSeconds: Int = 0
 
     init() {
         let ble = BluetoothManager()
@@ -45,445 +167,406 @@ struct PoloPadView: View {
 
     var body: some View {
         ZStack {
-            // Apple Pro Obsidian Gradient Canvas
+            // Anodized Slate Chassis Canvas with Carbon Depth
             LinearGradient(
                 colors: [
-                    Color(red: 0.06, green: 0.08, blue: 0.12),
-                    Color(red: 0.03, green: 0.04, blue: 0.06)
+                    Color(red: 0.09, green: 0.11, blue: 0.16),
+                    Color(red: 0.04, green: 0.05, blue: 0.08)
                 ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                startPoint: .top,
+                endPoint: .bottom
             )
             .ignoresSafeArea()
 
-            // Subtle Background Radial Glow for Live Timer Atmosphere
-            RadialGradient(
-                colors: [
-                    game.shotTimeMs <= 5000 && game.isRunning
-                        ? Color.red.opacity(0.18)
-                        : (game.isRunning ? Color.blue.opacity(0.10) : Color.clear),
-                    Color.clear
-                ],
-                center: .top,
-                startRadius: 50,
-                endRadius: 650
-            )
-            .ignoresSafeArea()
-            .animation(.easeInOut(duration: 0.4), value: game.shotTimeMs <= 5000)
+            VStack(spacing: 22) {
+                // Machined Header HUD
+                machinedTopHeader
 
-            VStack(spacing: 20) {
-                // Top Floating Glass HUD Bar
-                topGlassNavigationBar
-
-                // Central Command Deck: Hero Clocks
+                // Hero Clock Deck (Recessed Optical Glass Bays)
                 heroClockDeck
 
-                // Twin Power Actuators: 30s & 20s
-                tactileShotButtons
+                // Deep 3D Key Actuators (30s & 20s)
+                giant3DActuators
 
-                // Secondary Utility Dock (Undo, Fine Adjust, Horn)
-                utilityGlassDock
+                // Heavy Tactile Control Dock
+                tactileUtilityDock
 
-                // Team Scorecards & Live Exclusion Badges
-                teamScorecardsDock
+                // Recessed Team Bays & Ejections
+                teamInstrumentBays
             }
             .padding(.horizontal, 28)
             .padding(.vertical, 20)
         }
         .sheet(isPresented: $showingExclusionSheet) {
-            appleExclusionPickerSheet
+            tactileExclusionPicker
         }
     }
 
-    // MARK: - 1. Top Glass Navigation HUD
-    private var topGlassNavigationBar: some View {
+    // MARK: - 1. Machined Top Header
+    private var machinedTopHeader: some View {
         HStack(spacing: 16) {
-            // Period Segmented Controller (Apple HIG Capsule Style)
-            HStack(spacing: 4) {
+            // Recessed Period Switcher Rack
+            HStack(spacing: 6) {
                 ForEach([1, 2, 3, 4], id: \.self) { q in
-                    Button(action: {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
-                            game.setPeriod(q)
-                        }
-                    }) {
+                    Button(action: { game.setPeriod(q) }) {
                         Text("Q\(q)")
-                            .font(.system(.subheadline, design: .rounded).weight(.bold))
-                            .foregroundColor(game.period == q ? .white : .secondary)
-                            .frame(width: 48, height: 36)
-                            .background(
-                                game.period == q
-                                    ? AnyView(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.blue))
-                                    : AnyView(Color.clear)
-                            )
+                            .font(.system(.subheadline, design: .rounded).weight(.heavy))
+                            .foregroundColor(game.period == q ? .white : Color(white: 0.6))
+                            .frame(width: 48, height: 38)
                     }
-                    .buttonStyle(AppleTactileButtonStyle(hapticStyle: .light))
+                    .buttonStyle(StudioToggleButtonStyle(isSelected: game.period == q, activeColor: Color(red: 0.0, green: 0.48, blue: 1.0)))
                 }
 
-                Button(action: {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.75)) {
-                        game.setPeriod(5)
-                    }
-                }) {
+                Button(action: { game.setPeriod(5) }) {
                     Text("OT")
-                        .font(.system(.subheadline, design: .rounded).weight(.bold))
-                        .foregroundColor(game.period == 5 ? .white : .secondary)
-                        .frame(width: 48, height: 36)
-                        .background(
-                            game.period == 5
-                                ? AnyView(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.orange))
-                                : AnyView(Color.clear)
-                        )
+                        .font(.system(.subheadline, design: .rounded).weight(.heavy))
+                        .foregroundColor(game.period == 5 ? .white : Color(white: 0.6))
+                        .frame(width: 48, height: 38)
                 }
-                .buttonStyle(AppleTactileButtonStyle(hapticStyle: .light))
+                .buttonStyle(StudioToggleButtonStyle(isSelected: game.period == 5, activeColor: Color.orange))
             }
-            .padding(4)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(6)
+            .background(Color.black.opacity(0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
             )
 
             Spacer()
 
-            // Dynamic Island-Style Bluetooth Status Pill
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(ble.isConnected ? Color.green : Color.orange)
-                    .frame(width: 8, height: 8)
-                    .shadow(color: (ble.isConnected ? Color.green : Color.orange).opacity(0.6), radius: 4)
-
-                Text(ble.isConnected ? "PoloBridge Connected" : "Searching...")
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    .foregroundColor(ble.isConnected ? .primary : .secondary)
-
-                if ble.isConnected {
-                    Image(systemName: "wave.3.forward.circle.fill")
-                        .font(.system(size: 13))
-                        .foregroundColor(.green)
+            // Hardware Dongle Link Status Capsule (Illuminated Jewel Beacon)
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(ble.isConnected ? Color.green : Color.orange)
+                        .frame(width: 10, height: 10)
+                        .blur(radius: 2)
+                    Circle()
+                        .fill(Color.white.opacity(0.8))
+                        .frame(width: 4, height: 4)
                 }
+
+                Text(ble.isConnected ? "POLOBRIDGE 9600-8-E-1" : "CONNECTING DONGLE...")
+                    .font(.system(size: 12, weight: .black, design: .monospaced))
+                    .foregroundColor(ble.isConnected ? Color(red: 0.4, green: 1.0, blue: 0.6) : .orange)
+
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .font(.caption.bold())
+                    .foregroundColor(ble.isConnected ? .green : .orange)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(.ultraThinMaterial, in: Capsule())
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color.black.opacity(0.6))
+            .clipShape(Capsule())
             .overlay(
-                Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1)
             )
+            .shadow(color: Color.black.opacity(0.5), radius: 6, y: 3)
         }
     }
 
-    // MARK: - 2. Hero Clock Deck
+    // MARK: - 2. Hero Clock Deck (Recessed Optical Glass Bays)
     private var heroClockDeck: some View {
         HStack(spacing: 20) {
-            // Master Game Clock Card
+            // Master Game Clock Chamber
             HStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
                         Image(systemName: "stopwatch.fill")
-                            .font(.caption2.weight(.bold))
-                        Text("GAME CLOCK")
-                            .font(.caption2.weight(.bold))
-                            .tracking(1.5)
+                            .font(.caption.weight(.bold))
+                        Text("MASTER GAME TIMER")
+                            .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                            .tracking(1.8)
                     }
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.white.opacity(0.45))
 
                     Text(game.formattedGameTime)
-                        .font(.system(size: 68, weight: .black, design: .rounded))
+                        .font(.system(size: 64, weight: .black, design: .rounded))
                         .monospacedDigit()
-                        .foregroundColor(.primary)
-                        .contentTransition(.numericText())
+                        .foregroundColor(.white)
+                        .shadow(color: Color.blue.opacity(game.isRunning ? 0.35 : 0.0), radius: 10)
                 }
 
                 Spacer()
 
-                // Master Toggle Button (Apple Start/Stop Style)
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        game.toggleStartStop()
-                    }
-                }) {
-                    HStack(spacing: 8) {
+                // 3D Master Start/Stop Plunger Button
+                Button(action: { game.toggleStartStop() }) {
+                    HStack(spacing: 10) {
                         Image(systemName: game.isRunning ? "pause.fill" : "play.fill")
-                            .font(.title2.weight(.black))
-                        Text(game.isRunning ? "PAUSE" : "START")
+                            .font(.title3.weight(.black))
+                        Text(game.isRunning ? "STOP" : "START")
                             .font(.title3.weight(.heavy))
-                            .tracking(0.5)
+                            .tracking(1)
                     }
-                    .frame(width: 160, height: 72)
+                    .frame(width: 154, height: 68)
                     .foregroundColor(.white)
-                    .background(
-                        LinearGradient(
-                            colors: game.isRunning
-                                ? [Color(uiColor: .systemRed), Color.red.opacity(0.85)]
-                                : [Color(uiColor: .systemGreen), Color.green.opacity(0.85)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 1)
-                    )
-                    .shadow(
-                        color: (game.isRunning ? Color.red : Color.green).opacity(0.35),
-                        radius: 12, y: 4
-                    )
                 }
-                .buttonStyle(AppleTactileButtonStyle(hapticStyle: .heavy))
+                .buttonStyle(
+                    Mechanical3DButtonStyle(
+                        primaryColor: game.isRunning ? Color(red: 0.95, green: 0.22, blue: 0.22) : Color(red: 0.12, green: 0.78, blue: 0.42),
+                        shadowColor: game.isRunning ? Color(red: 0.55, green: 0.08, blue: 0.08) : Color(red: 0.05, green: 0.42, blue: 0.22),
+                        extrusionHeight: 6,
+                        haptic: .heavy
+                    )
+                )
             }
             .padding(.horizontal, 24)
-            .padding(.vertical, 20)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-            )
+            .padding(.vertical, 18)
+            .recessedChamber(cornerRadius: 24)
 
-            // Shot Clock Hero Card
-            VStack(alignment: .trailing, spacing: 4) {
+            // Shot Clock Recessed Chamber
+            VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 6) {
-                    Image(systemName: "timer")
-                        .font(.caption2.weight(.bold))
+                    Image(systemName: "bolt.fill")
+                        .font(.caption.bold())
                     Text("SHOT CLOCK")
-                        .font(.caption2.weight(.bold))
-                        .tracking(1.5)
+                        .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                        .tracking(1.8)
                 }
-                .foregroundColor(game.shotTimeMs <= 5000 ? .red : .orange)
+                .foregroundColor(game.shotTimeMs <= 5000 ? Color.red : Color.orange)
 
                 Text(game.formattedShotTime)
-                    .font(.system(size: 78, weight: .black, design: .rounded))
+                    .font(.system(size: 76, weight: .black, design: .rounded))
                     .monospacedDigit()
-                    .foregroundColor(game.shotTimeMs <= 5000 ? .red : Color(red: 1.0, green: 0.76, blue: 0.03))
-                    .frame(minWidth: 160, alignment: .trailing)
-                    .contentTransition(.numericText())
+                    .foregroundColor(
+                        game.shotTimeMs <= 5000
+                            ? Color(red: 1.0, green: 0.25, blue: 0.25)
+                            : Color(red: 1.0, green: 0.82, blue: 0.12)
+                    )
+                    .frame(minWidth: 155, alignment: .trailing)
                     .shadow(
-                        color: (game.shotTimeMs <= 5000 ? Color.red : Color.orange).opacity(game.isRunning ? 0.35 : 0.0),
-                        radius: 12
+                        color: (game.shotTimeMs <= 5000 ? Color.red : Color.yellow).opacity(0.4),
+                        radius: 14
                     )
             }
-            .padding(.horizontal, 28)
-            .padding(.vertical, 16)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .strokeBorder(
-                        game.shotTimeMs <= 5000 ? Color.red.opacity(0.5) : Color.white.opacity(0.1),
-                        lineWidth: game.shotTimeMs <= 5000 ? 2 : 1
-                    )
-            )
+            .padding(.horizontal, 26)
+            .padding(.vertical, 14)
+            .recessedChamber(cornerRadius: 24)
         }
     }
 
-    // MARK: - 3. Tactile 30s & 20s Power Actuators
-    private var tactileShotButtons: some View {
-        HStack(spacing: 20) {
-            // GIANT 30s BUTTON
+    // MARK: - 3. Deep 3D Key Actuators (30s & 20s)
+    private var giant3DActuators: some View {
+        HStack(spacing: 22) {
+            // 30 SECONDS ACTUATOR (Full Possession Change)
             Button(action: { game.reset30() }) {
-                VStack(spacing: 6) {
+                VStack(spacing: 4) {
                     Text("30")
-                        .font(.system(size: 64, weight: .black, design: .rounded))
+                        .font(.system(size: 66, weight: .black, design: .rounded))
                         .monospacedDigit()
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.counterclockwise.circle.fill")
-                        Text("POSSESSION TURNOVER")
+                        Text("RESET 30s (Turnover)")
                             .font(.system(size: 14, weight: .heavy))
-                            .tracking(0.8)
+                            .tracking(0.6)
                     }
-                    .opacity(0.9)
+                    .opacity(0.95)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 124)
+                .frame(height: 120)
                 .foregroundColor(.white)
-                .background(
-                    LinearGradient(
-                        colors: [Color(red: 0.06, green: 0.72, blue: 0.44), Color(red: 0.03, green: 0.55, blue: 0.33)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.25), lineWidth: 1)
-                )
-                .shadow(color: Color.green.opacity(0.28), radius: 14, y: 6)
             }
-            .buttonStyle(AppleTactileButtonStyle(hapticStyle: .heavy))
+            .buttonStyle(
+                Mechanical3DButtonStyle(
+                    primaryColor: Color(red: 0.08, green: 0.75, blue: 0.44),
+                    shadowColor: Color(red: 0.03, green: 0.42, blue: 0.24),
+                    extrusionHeight: 8,
+                    haptic: .heavy
+                )
+            )
 
-            // GIANT 20s BUTTON
+            // 20 SECONDS ACTUATOR (Rebound / Exclusion / Penalty)
             Button(action: { game.reset20() }) {
-                VStack(spacing: 6) {
+                VStack(spacing: 4) {
                     Text("20")
-                        .font(.system(size: 64, weight: .black, design: .rounded))
+                        .font(.system(size: 66, weight: .black, design: .rounded))
                         .monospacedDigit()
                     HStack(spacing: 6) {
-                        Image(systemName: "exclamationmark.circle.fill")
-                        Text("REBOUND / EXCLUSION")
+                        Image(systemName: "exclamationmark.triangle.fill")
+                        Text("RESET 20s (Rebound/Eject)")
                             .font(.system(size: 14, weight: .heavy))
-                            .tracking(0.8)
+                            .tracking(0.6)
                     }
-                    .opacity(0.9)
+                    .opacity(0.95)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 124)
+                .frame(height: 120)
                 .foregroundColor(.white)
-                .background(
-                    LinearGradient(
-                        colors: [Color(red: 0.95, green: 0.58, blue: 0.07), Color(red: 0.85, green: 0.44, blue: 0.03)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.25), lineWidth: 1)
-                )
-                .shadow(color: Color.orange.opacity(0.28), radius: 14, y: 6)
             }
-            .buttonStyle(AppleTactileButtonStyle(hapticStyle: .heavy))
+            .buttonStyle(
+                Mechanical3DButtonStyle(
+                    primaryColor: Color(red: 1.0, green: 0.58, blue: 0.05),
+                    shadowColor: Color(red: 0.65, green: 0.32, blue: 0.0),
+                    extrusionHeight: 8,
+                    haptic: .heavy
+                )
+            )
         }
     }
 
-    // MARK: - 4. Utility Glass Dock
-    private var utilityGlassDock: some View {
+    // MARK: - 4. Heavy Tactile Utility Dock
+    private var tactileUtilityDock: some View {
         HStack(spacing: 14) {
-            // Undo Reset
-            Button(action: {
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
-                    game.undoLastReset()
-                }
-            }) {
+            // Undo Reset Key
+            Button(action: { game.undoLastReset() }) {
                 Label("UNDO RESET", systemImage: "arrow.uturn.backward.circle.fill")
-                    .font(.subheadline.bold())
+                    .font(.system(size: 14, weight: .heavy))
                     .frame(maxWidth: .infinity)
                     .frame(height: 48)
                     .foregroundColor(.white)
-                    .background(Color.purple.opacity(0.75))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
-            .buttonStyle(AppleTactileButtonStyle(hapticStyle: .medium))
+            .buttonStyle(
+                Mechanical3DButtonStyle(
+                    primaryColor: Color(red: 0.62, green: 0.24, blue: 0.92),
+                    shadowColor: Color(red: 0.35, green: 0.10, blue: 0.55),
+                    extrusionHeight: 5,
+                    haptic: .medium
+                )
+            )
 
-            // Adjust -1s
+            // -1s Nudge
             Button(action: { game.adjustShotClock(bySeconds: -1) }) {
                 Text("-1s Shot")
-                    .font(.subheadline.bold())
+                    .font(.system(size: 14, weight: .heavy))
                     .frame(maxWidth: .infinity)
                     .frame(height: 48)
-                    .foregroundColor(.primary)
-                    .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-                    )
+                    .foregroundColor(Color.white.opacity(0.9))
             }
-            .buttonStyle(AppleTactileButtonStyle(hapticStyle: .light))
+            .buttonStyle(
+                Mechanical3DButtonStyle(
+                    primaryColor: Color(red: 0.22, green: 0.25, blue: 0.33),
+                    shadowColor: Color(red: 0.10, green: 0.12, blue: 0.17),
+                    extrusionHeight: 5,
+                    haptic: .light
+                )
+            )
 
-            // Adjust +1s
+            // +1s Nudge
             Button(action: { game.adjustShotClock(bySeconds: 1) }) {
                 Text("+1s Shot")
-                    .font(.subheadline.bold())
+                    .font(.system(size: 14, weight: .heavy))
                     .frame(maxWidth: .infinity)
                     .frame(height: 48)
-                    .foregroundColor(.primary)
-                    .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-                    )
+                    .foregroundColor(Color.white.opacity(0.9))
             }
-            .buttonStyle(AppleTactileButtonStyle(hapticStyle: .light))
+            .buttonStyle(
+                Mechanical3DButtonStyle(
+                    primaryColor: Color(red: 0.22, green: 0.25, blue: 0.33),
+                    shadowColor: Color(red: 0.10, green: 0.12, blue: 0.17),
+                    extrusionHeight: 5,
+                    haptic: .light
+                )
+            )
 
-            // Electric Horn
+            // Emergency Aquatic Horn Slammer
             Button(action: { game.triggerManualHorn() }) {
                 Label("HORN", systemImage: "speaker.wave.3.fill")
-                    .font(.subheadline.weight(.heavy))
+                    .font(.system(size: 15, weight: .black))
                     .frame(maxWidth: .infinity)
                     .frame(height: 48)
                     .foregroundColor(.white)
-                    .background(Color(uiColor: .systemRed))
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .shadow(color: Color.red.opacity(0.3), radius: 8, y: 2)
             }
-            .buttonStyle(AppleTactileButtonStyle(hapticStyle: .heavy))
+            .buttonStyle(
+                Mechanical3DButtonStyle(
+                    primaryColor: Color(red: 0.92, green: 0.15, blue: 0.15),
+                    shadowColor: Color(red: 0.50, green: 0.05, blue: 0.05),
+                    extrusionHeight: 5,
+                    haptic: .heavy
+                )
+            )
         }
     }
 
-    // MARK: - 5. Team Scorecards & Exclusion Trackers
-    private var teamScorecardsDock: some View {
+    // MARK: - 5. Recessed Team Instrument Bays
+    private var teamInstrumentBays: some View {
         HStack(spacing: 20) {
-            appleTeamScoreCard(
+            tactileTeamBay(
                 teamName: "WHITE TEAM",
                 score: game.scoreWhite,
                 accentColor: .white,
                 isWhite: true
             )
 
-            appleTeamScoreCard(
+            tactileTeamBay(
                 teamName: "DARK TEAM",
                 score: game.scoreDark,
-                accentColor: Color(red: 0.35, green: 0.65, blue: 1.0),
+                accentColor: Color(red: 0.40, green: 0.70, blue: 1.0),
                 isWhite: false
             )
         }
     }
 
-    private func appleTeamScoreCard(
+    private func tactileTeamBay(
         teamName: String,
         score: Int,
         accentColor: Color,
         isWhite: Bool
     ) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack {
                 HStack(spacing: 8) {
                     Circle()
                         .fill(accentColor)
                         .frame(width: 12, height: 12)
+                        .shadow(color: accentColor.opacity(0.6), radius: 4)
                     Text(teamName)
-                        .font(.headline.weight(.heavy))
+                        .font(.system(size: 16, weight: .black))
                         .foregroundColor(accentColor)
                 }
 
                 Spacer()
 
-                // Score Stepper
-                HStack(spacing: 12) {
+                // Mechanical Score Knobs
+                HStack(spacing: 10) {
                     Button(action: { game.updateScore(isWhite: isWhite, delta: -1) }) {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
+                        Text("−")
+                            .font(.system(size: 22, weight: .black))
+                            .frame(width: 38, height: 38)
+                            .foregroundColor(.white)
                     }
-                    .buttonStyle(AppleTactileButtonStyle(hapticStyle: .light))
+                    .buttonStyle(
+                        Mechanical3DButtonStyle(
+                            primaryColor: Color(white: 0.25),
+                            shadowColor: Color(white: 0.12),
+                            extrusionHeight: 4,
+                            haptic: .medium
+                        )
+                    )
 
                     Text("\(score)")
-                        .font(.system(size: 38, weight: .black, design: .rounded))
+                        .font(.system(size: 36, weight: .black, design: .rounded))
                         .monospacedDigit()
-                        .foregroundColor(.primary)
+                        .foregroundColor(.white)
                         .frame(minWidth: 44)
+                        .shadow(color: accentColor.opacity(0.3), radius: 6)
 
                     Button(action: { game.updateScore(isWhite: isWhite, delta: 1) }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.green)
+                        Text("+")
+                            .font(.system(size: 22, weight: .black))
+                            .frame(width: 38, height: 38)
+                            .foregroundColor(.white)
                     }
-                    .buttonStyle(AppleTactileButtonStyle(hapticStyle: .light))
+                    .buttonStyle(
+                        Mechanical3DButtonStyle(
+                            primaryColor: Color(red: 0.10, green: 0.65, blue: 0.35),
+                            shadowColor: Color(red: 0.04, green: 0.35, blue: 0.18),
+                            extrusionHeight: 4,
+                            haptic: .medium
+                        )
+                    )
                 }
             }
 
-            Divider().background(Color.white.opacity(0.12))
+            Divider().background(Color.white.opacity(0.08))
 
-            // Exclusion Badges Tray
+            // Slotted Exclusion Deck
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("20s EXCLUSIONS")
-                        .font(.caption2.weight(.bold))
+                    Text("20s MAJOR FOULS")
+                        .font(.system(size: 10, weight: .black, design: .monospaced))
                         .tracking(1.2)
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Color.white.opacity(0.4))
 
                     Spacer()
 
@@ -491,29 +574,29 @@ struct PoloPadView: View {
                         exclusionTargetIsWhite = isWhite
                         showingExclusionSheet = true
                     }) {
-                        Label("Add Ejection", systemImage: "plus")
-                            .font(.caption.weight(.bold))
+                        Label("EJECT CAP", systemImage: "plus")
+                            .font(.system(size: 11, weight: .heavy))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .background(Color.red.opacity(0.18))
+                            .background(Color.red.opacity(0.2))
                             .foregroundColor(.red)
                             .clipShape(Capsule())
+                            .overlay(Capsule().stroke(Color.red.opacity(0.4), lineWidth: 1))
                     }
-                    .buttonStyle(AppleTactileButtonStyle(hapticStyle: .light))
                 }
 
                 let teamExclusions = game.activeExclusions.filter { $0.isWhiteTeam == isWhite }
                 if teamExclusions.isEmpty {
-                    Text("No active ejections")
-                        .font(.footnote)
-                        .foregroundColor(.secondary.opacity(0.6))
-                        .padding(.vertical, 4)
+                    Text("FULL STRENGTH")
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color.white.opacity(0.2))
+                        .padding(.vertical, 2)
                 } else {
                     HStack(spacing: 8) {
                         ForEach(teamExclusions) { ex in
                             HStack(spacing: 6) {
-                                Text("Cap #\(ex.capNumber)")
-                                    .fontWeight(.bold)
+                                Text("#\(ex.capNumber)")
+                                    .fontWeight(.heavy)
                                 Text("\(ex.remainingSeconds)s")
                                     .font(.system(.body, design: .rounded).weight(.black))
                                     .monospacedDigit()
@@ -522,18 +605,20 @@ struct PoloPadView: View {
                                 Button(action: { game.removeExclusion(id: ex.id) }) {
                                     Image(systemName: "xmark.circle.fill")
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundColor(Color.white.opacity(0.6))
                                 }
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(ex.remainingSeconds == 0 ? Color.green.opacity(0.3) : Color.red.opacity(0.25))
-                            .clipShape(Capsule())
+                            .background(
+                                ex.remainingSeconds == 0
+                                    ? Color.green.opacity(0.35)
+                                    : Color.red.opacity(0.3)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                             .overlay(
-                                Capsule().strokeBorder(
-                                    ex.remainingSeconds <= 5 ? Color.orange : Color.clear,
-                                    lineWidth: 1
-                                )
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(ex.remainingSeconds <= 5 ? Color.orange : Color.clear, lineWidth: 1.5)
                             )
                         }
                     }
@@ -541,58 +626,53 @@ struct PoloPadView: View {
             }
         }
         .padding(18)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
-        )
+        .recessedChamber(cornerRadius: 22)
     }
 
-    // MARK: - 6. Apple-Grade Exclusion Picker Modal
-    private var appleExclusionPickerSheet: some View {
+    // MARK: - 6. Slotted Ejection Picker Sheet
+    private var tactileExclusionPicker: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Text("Select Excluded Player Cap Number")
-                    .font(.subheadline)
+            VStack(spacing: 20) {
+                Text("SELECT EXCLUDED CAP NUMBER")
+                    .font(.system(size: 12, weight: .black, design: .monospaced))
                     .foregroundColor(.secondary)
-                    .padding(.top, 8)
+                    .padding(.top, 10)
 
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 5), spacing: 14) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 14) {
                     ForEach(1...20, id: \.self) { cap in
                         Button(action: {
                             game.addExclusion(capNumber: cap, isWhite: exclusionTargetIsWhite)
                             showingExclusionSheet = false
                         }) {
                             Text("\(cap)")
-                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .font(.system(size: 24, weight: .black, design: .rounded))
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 56)
-                                .foregroundColor(.primary)
-                                .background(.regularMaterial)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                                )
+                                .frame(height: 54)
+                                .foregroundColor(.white)
                         }
-                        .buttonStyle(AppleTactileButtonStyle(hapticStyle: .medium))
+                        .buttonStyle(
+                            Mechanical3DButtonStyle(
+                                primaryColor: Color(red: 0.18, green: 0.22, blue: 0.30),
+                                shadowColor: Color(red: 0.08, green: 0.10, blue: 0.14),
+                                extrusionHeight: 5,
+                                haptic: .medium
+                            )
+                        )
                     }
                 }
                 .padding(.horizontal, 24)
 
                 Spacer()
             }
-            .navigationTitle("Add 20s Exclusion (\(exclusionTargetIsWhite ? "White" : "Dark"))")
+            .navigationTitle("Major Foul Ejection (\(exclusionTargetIsWhite ? "White" : "Dark"))")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { showingExclusionSheet = false }
                 }
             }
-            .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+            .background(Color(red: 0.08, green: 0.10, blue: 0.14).ignoresSafeArea())
         }
-        .presentationDetents([.fraction(0.52)])
-        .presentationCornerRadius(28)
+        .presentationDetents([.fraction(0.55)])
     }
 }

@@ -3,34 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PoloPad Pro - Apple iPadOS Design System & Hardware Simulator</title>
+  <title>PoloPad Pro - Deep Tactile Instrument Deck & Hardware Simulator</title>
   <style>
     :root {
-      --bg: #090a0f;
-      --card-glass: rgba(28, 32, 45, 0.72);
-      --card-border: rgba(255, 255, 255, 0.11);
-      --card-border-subtle: rgba(255, 255, 255, 0.06);
-      --system-green: #34c759;
-      --system-green-dark: #248a3d;
-      --system-orange: #ff9500;
-      --system-orange-dark: #c97500;
-      --system-red: #ff3b30;
-      --system-blue: #007aff;
-      --system-purple: #af52de;
-      --system-yellow: #ffcc00;
-      --text: #ffffff;
-      --text-secondary: rgba(255, 255, 255, 0.65);
-      --text-tertiary: rgba(255, 255, 255, 0.45);
+      --chassis-bg: #0b0e15;
+      --panel-dark: #07090e;
+      --bay-inset: #030407;
+      --bevel-light: rgba(255, 255, 255, 0.16);
+      --bevel-dark: rgba(0, 0, 0, 0.85);
+
+      --green-surf: #10b981;
+      --green-dark: #047857;
+      --green-shadow: #064e3b;
+
+      --orange-surf: #f59e0b;
+      --orange-dark: #d97706;
+      --orange-shadow: #92400e;
+
+      --red-surf: #ef4444;
+      --red-dark: #b91c1c;
+      --red-shadow: #7f1d1d;
+
+      --purple-surf: #a855f7;
+      --purple-dark: #7e22ce;
+      --purple-shadow: #581c87;
+
+      --blue-surf: #3b82f6;
+      --blue-dark: #1d4ed8;
+
       --led-amber: #ffb703;
       --led-red: #ff3333;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-    
+
     body {
-      background: radial-gradient(circle at 50% 0%, #151c2e 0%, #090a0f 75%);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(circle at 50% 10%, #151b2a 0%, #06080d 80%);
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
       padding: 24px;
       min-height: 100vh;
       display: flex;
@@ -45,7 +55,7 @@
       justify-content: space-between;
       align-items: center;
       padding-bottom: 16px;
-      border-bottom: 1px solid var(--card-border-subtle);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .brand {
       display: flex;
@@ -53,435 +63,509 @@
       gap: 12px;
     }
     .brand-icon {
-      width: 36px; height: 36px; border-radius: 10px;
-      background: linear-gradient(135deg, #007aff, #0051a8);
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(180deg, #2563eb, #1e40af);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4), inset 0 1px 0 rgba(255,255,255,0.4);
       display: flex; align-items: center; justify-content: center;
-      font-size: 20px;
-      box-shadow: 0 4px 12px rgba(0, 122, 255, 0.35);
+      font-size: 22px;
     }
     .brand-title {
-      font-size: 20px; font-weight: 700; letter-spacing: -0.4px;
+      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
     }
-    .brand-subtitle {
-      font-size: 12px; color: var(--text-tertiary); font-weight: 500;
+    .brand-sub {
+      font-size: 12px; color: #94a3b8; font-weight: 600;
     }
 
-    /* APPLE GLASS PILL BADGE */
-    .glass-pill {
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--card-border);
-      padding: 6px 14px;
-      border-radius: 40px;
+    /* HARDWARE STATUS BEACON */
+    .status-capsule {
+      background: #06080e;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.8), 0 1px 0 rgba(255,255,255,0.1);
+      padding: 6px 16px;
+      border-radius: 30px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       font-size: 13px;
-      font-weight: 600;
-      color: var(--text);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+      font-weight: 700;
+      letter-spacing: 0.5px;
     }
-    .status-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--system-green);
-      box-shadow: 0 0 10px var(--system-green);
+    .beacon-bulb {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 12px #10b981;
+      position: relative;
+    }
+    .beacon-bulb::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 3px; height: 3px;
+      border-radius: 50%; background: #fff;
     }
 
-    /* MAIN STAGE GRID */
+    /* MAIN STAGE */
     .main-grid {
       display: grid;
       grid-template-columns: 1.25fr 0.75fr;
       gap: 24px;
       align-items: start;
     }
-    @media (max-width: 1060px) {
+    @media (max-width: 1100px) {
       .main-grid { grid-template-columns: 1fr; }
     }
 
     /* ================================================= */
-    /* IPAD PRO CONSOLE (FIRST-PARTY APPLE HIG UI)       */
+    /* MACHINED INSTRUMENT CHASSIS (EXTREME DEPTH)       */
     /* ================================================= */
-    .ipad-canvas {
-      background: var(--card-glass);
-      backdrop-filter: blur(30px);
-      -webkit-backdrop-filter: blur(30px);
-      border: 1px solid var(--card-border);
-      border-radius: 28px;
-      padding: 24px;
+    .machined-deck {
+      background: linear-gradient(180deg, #131722 0%, #080a0f 100%);
+      border: 2px solid #232838;
+      border-radius: 30px;
+      padding: 26px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.12);
+      gap: 22px;
+      box-shadow: 
+        0 24px 60px rgba(0,0,0,0.85),
+        inset 0 1px 0 rgba(255,255,255,0.18),
+        inset 0 -1px 0 rgba(0,0,0,0.8);
+      position: relative;
     }
 
-    /* TOP BAR HUD */
-    .hud-bar {
+    /* Screws on chassis corners for industrial precision look */
+    .chassis-screw {
+      position: absolute;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: radial-gradient(circle, #475569 30%, #1e293b 80%);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.15);
+    }
+    .screw-tl { top: 12px; left: 14px; }
+    .screw-tr { top: 12px; right: 14px; }
+    .screw-bl { bottom: 12px; left: 14px; }
+    .screw-br { bottom: 12px; right: 14px; }
+
+    /* RECESSED INSTRUMENT BAY */
+    .recessed-bay {
+      background: radial-gradient(circle at 50% 20%, #0d1019 0%, #030406 100%);
+      border: 2px solid #1c2233;
+      border-radius: 22px;
+      padding: 18px 24px;
+      box-shadow: 
+        inset 0 8px 20px rgba(0,0,0,0.95),
+        inset 0 0 0 1px rgba(255,255,255,0.05),
+        0 1px 0 rgba(255,255,255,0.14);
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .segmented-control {
+
+    /* TOP PERIOD RACK */
+    .period-rack {
       display: flex;
-      background: rgba(0, 0, 0, 0.35);
-      padding: 3px;
-      border-radius: 12px;
-      border: 1px solid var(--card-border-subtle);
-      gap: 3px;
+      gap: 6px;
+      background: #05070c;
+      padding: 4px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: inset 0 3px 8px rgba(0,0,0,0.8);
     }
-    .seg-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-secondary);
+    .period-key {
+      background: linear-gradient(180deg, #232938 0%, #141822 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #94a3b8;
       font-size: 13px;
-      font-weight: 700;
-      padding: 6px 14px;
-      border-radius: 9px;
+      font-weight: 800;
+      padding: 8px 16px;
+      border-radius: 10px;
       cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 3px 0 #07090e, 0 5px 10px rgba(0,0,0,0.5);
+      transition: all 0.08s ease;
     }
-    .seg-btn.active {
-      background: var(--system-blue);
+    .period-key:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #07090e, 0 2px 4px rgba(0,0,0,0.5);
+    }
+    .period-key.active {
+      background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
       color: #fff;
-      box-shadow: 0 2px 8px rgba(0, 122, 255, 0.4);
+      border-color: rgba(255,255,255,0.4);
+      box-shadow: 0 3px 0 #1e3a8a, 0 5px 12px rgba(59, 130, 246, 0.4);
     }
 
-    /* HERO CLOCKS BAR */
+    /* HERO CLOCKS DISPLAY */
     .hero-clocks-bar {
       display: grid;
-      grid-template-columns: 1.4fr 1fr;
-      gap: 16px;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 18px;
     }
-    .glass-card {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--card-border);
-      border-radius: 22px;
-      padding: 18px 22px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      position: relative;
-      overflow: hidden;
+    .caption-tag {
+      font-size: 10px; font-weight: 900; letter-spacing: 1.8px;
+      text-transform: uppercase; color: #64748b; margin-bottom: 4px;
+      display: flex; align-items: center; gap: 6px;
     }
-    .card-caption {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.4px;
-      text-transform: uppercase;
-      color: var(--text-tertiary);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .game-clock-digits {
-      font-size: 54px;
+    .clock-digits {
+      font-size: 58px;
       font-weight: 900;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
       font-feature-settings: "tnum";
       font-variant-numeric: tabular-nums;
-      letter-spacing: -0.5px;
       color: #fff;
+      text-shadow: 0 0 16px rgba(255,255,255,0.25);
+    }
+    .shot-digits {
+      font-size: 72px;
+      font-weight: 900;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
+      font-feature-settings: "tnum";
+      font-variant-numeric: tabular-nums;
+      color: var(--led-amber);
+      text-shadow: 0 0 22px rgba(255, 183, 3, 0.45);
+      transition: all 0.2s;
+    }
+    .shot-digits.danger {
+      color: var(--led-red);
+      text-shadow: 0 0 26px rgba(255, 51, 51, 0.7);
     }
 
-    .master-btn-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 6px;
-    }
-    .btn-apple-pill {
+    /* 3D MECHANICAL MASTER RUN SWITCH */
+    .plunger-btn {
+      position: relative;
+      top: 0;
       border: none;
-      border-radius: 16px;
-      padding: 12px 28px;
-      font-size: 17px;
-      font-weight: 800;
+      border-radius: 18px;
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 1px;
       color: #fff;
       cursor: pointer;
       display: flex;
       align-items: center;
       gap: 8px;
-      transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      transition: all 0.08s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .btn-apple-pill:active { transform: scale(0.95); }
-    .btn-apple-pill.start {
-      background: linear-gradient(180deg, var(--system-green) 0%, var(--system-green-dark) 100%);
-      box-shadow: 0 4px 18px rgba(52, 199, 89, 0.4);
+    .plunger-btn.start {
+      background: linear-gradient(180deg, var(--green-surf) 0%, var(--green-dark) 100%);
+      box-shadow: 
+        0 7px 0 var(--green-shadow),
+        0 12px 22px rgba(0,0,0,0.6),
+        inset 0 1.5px 0 rgba(255,255,255,0.45);
     }
-    .btn-apple-pill.stop {
-      background: linear-gradient(180deg, var(--system-red) 0%, #b8231a 100%);
-      box-shadow: 0 4px 18px rgba(255, 59, 48, 0.4);
+    .plunger-btn.start:active {
+      top: 5px;
+      box-shadow: 
+        0 2px 0 var(--green-shadow),
+        0 4px 10px rgba(0,0,0,0.4),
+        inset 0 1.5px 0 rgba(255,255,255,0.45);
     }
-
-    .shot-card {
-      align-items: flex-end;
-      text-align: right;
+    .plunger-btn.stop {
+      background: linear-gradient(180deg, var(--red-surf) 0%, var(--red-dark) 100%);
+      box-shadow: 
+        0 7px 0 var(--red-shadow),
+        0 12px 22px rgba(0,0,0,0.6),
+        inset 0 1.5px 0 rgba(255,255,255,0.45);
     }
-    .shot-clock-digits {
-      font-size: 68px;
-      font-weight: 900;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
-      font-feature-settings: "tnum";
-      font-variant-numeric: tabular-nums;
-      color: var(--system-yellow);
-      line-height: 1;
-      text-shadow: 0 0 20px rgba(255, 204, 0, 0.25);
-      transition: color 0.2s;
-    }
-    .shot-clock-digits.low {
-      color: var(--system-red);
-      text-shadow: 0 0 24px rgba(255, 59, 48, 0.5);
+    .plunger-btn.stop:active {
+      top: 5px;
+      box-shadow: 
+        0 2px 0 var(--red-shadow),
+        0 4px 10px rgba(0,0,0,0.4),
+        inset 0 1.5px 0 rgba(255,255,255,0.45);
     }
 
-    /* TWIN 30s & 20s RESET ACTUATORS */
-    .twin-actuators {
+    /* ================================================= */
+    /* TWIN 3D ACTUATORS (EXTREME PHYSICAL TRAVEL)       */
+    /* ================================================= */
+    .actuators-rack {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 20px;
     }
-    .actuator-btn {
-      height: 120px;
-      border-radius: 22px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+    .heavy-actuator {
+      position: relative;
+      top: 0;
+      height: 126px;
+      border: none;
+      border-radius: 24px;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       color: #fff;
-      transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), filter 0.12s;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-      position: relative;
-      overflow: hidden;
+      transition: all 0.08s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .actuator-btn:active {
-      transform: scale(0.96);
-      filter: brightness(1.15);
-    }
-    .actuator-btn .big-num {
-      font-size: 56px;
+    .actuator-num {
+      font-size: 62px;
       font-weight: 900;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
       line-height: 1;
-      letter-spacing: -1px;
+      letter-spacing: -1.5px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
     }
-    .actuator-btn .btn-caption {
-      font-size: 13px;
-      font-weight: 800;
+    .actuator-label {
+      font-size: 14px;
+      font-weight: 900;
       letter-spacing: 0.8px;
       text-transform: uppercase;
       margin-top: 4px;
       opacity: 0.95;
     }
+
+    /* 30 SECONDS GREEN KEY */
     .actuator-30 {
-      background: linear-gradient(135deg, var(--system-green) 0%, var(--system-green-dark) 100%);
-      box-shadow: 0 8px 28px rgba(52, 199, 89, 0.35);
+      background: linear-gradient(180deg, var(--green-surf) 0%, var(--green-dark) 100%);
+      box-shadow: 
+        0 10px 0 var(--green-shadow),
+        0 18px 32px rgba(0,0,0,0.7),
+        inset 0 2px 0 rgba(255,255,255,0.5),
+        inset 0 -2px 0 rgba(0,0,0,0.3);
     }
-    .actuator-20 {
-      background: linear-gradient(135deg, var(--system-orange) 0%, var(--system-orange-dark) 100%);
-      box-shadow: 0 8px 28px rgba(255, 149, 0, 0.35);
+    .actuator-30:active {
+      top: 8px;
+      box-shadow: 
+        0 2px 0 var(--green-shadow),
+        0 6px 14px rgba(0,0,0,0.5),
+        inset 0 2px 0 rgba(255,255,255,0.5);
     }
 
-    /* UTILITY GLASS DOCK */
-    .utility-dock {
-      display: grid;
-      grid-template-columns: 1.4fr 1fr 1fr 1.2fr;
-      gap: 12px;
+    /* 20 SECONDS AMBER KEY */
+    .actuator-20 {
+      background: linear-gradient(180deg, var(--orange-surf) 0%, var(--orange-dark) 100%);
+      box-shadow: 
+        0 10px 0 var(--orange-shadow),
+        0 18px 32px rgba(0,0,0,0.7),
+        inset 0 2px 0 rgba(255,255,255,0.5),
+        inset 0 -2px 0 rgba(0,0,0,0.3);
     }
-    .util-btn {
-      height: 48px;
+    .actuator-20:active {
+      top: 8px;
+      box-shadow: 
+        0 2px 0 var(--orange-shadow),
+        0 6px 14px rgba(0,0,0,0.5),
+        inset 0 2px 0 rgba(255,255,255,0.5);
+    }
+
+    /* ================================================= */
+    /* 3D MECHANICAL UTILITY DOCK                        */
+    /* ================================================= */
+    .dock-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1.3fr;
+      gap: 14px;
+    }
+    .dock-key {
+      position: relative;
+      top: 0;
+      height: 50px;
+      border: none;
       border-radius: 14px;
-      background: rgba(255, 255, 255, 0.06);
-      backdrop-filter: blur(20px);
-      border: 1px solid var(--card-border);
-      color: #fff;
       font-size: 14px;
-      font-weight: 700;
+      font-weight: 800;
+      color: #fff;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.08s ease;
     }
-    .util-btn:active { transform: scale(0.95); }
-    .btn-undo-purple {
-      background: linear-gradient(135deg, var(--system-purple) 0%, #7d1da8 100%);
-      border: none;
-      box-shadow: 0 4px 14px rgba(175, 82, 222, 0.3);
+    .dock-undo {
+      background: linear-gradient(180deg, var(--purple-surf) 0%, var(--purple-dark) 100%);
+      box-shadow: 
+        0 6px 0 var(--purple-shadow),
+        0 10px 18px rgba(0,0,0,0.5),
+        inset 0 1.5px 0 rgba(255,255,255,0.4);
     }
-    .btn-horn-red {
-      background: linear-gradient(135deg, var(--system-red) 0%, #ba1e16 100%);
-      border: none;
-      font-weight: 900;
-      box-shadow: 0 4px 14px rgba(255, 59, 48, 0.35);
+    .dock-undo:active {
+      top: 4px;
+      box-shadow: 0 2px 0 var(--purple-shadow), 0 4px 8px rgba(0,0,0,0.4);
     }
 
-    /* TEAM SCOREBOARDS & EXCLUSIONS */
-    .teams-grid {
+    .dock-adjust {
+      background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+      box-shadow: 
+        0 6px 0 #0f172a,
+        0 10px 18px rgba(0,0,0,0.5),
+        inset 0 1.5px 0 rgba(255,255,255,0.2);
+    }
+    .dock-adjust:active {
+      top: 4px;
+      box-shadow: 0 2px 0 #0f172a, 0 4px 8px rgba(0,0,0,0.4);
+    }
+
+    .dock-horn {
+      background: linear-gradient(180deg, var(--red-surf) 0%, var(--red-dark) 100%);
+      font-weight: 900;
+      box-shadow: 
+        0 6px 0 var(--red-shadow),
+        0 10px 18px rgba(0,0,0,0.5),
+        inset 0 1.5px 0 rgba(255,255,255,0.4);
+    }
+    .dock-horn:active {
+      top: 4px;
+      box-shadow: 0 2px 0 var(--red-shadow), 0 4px 8px rgba(0,0,0,0.4);
+    }
+
+    /* TEAMS & EXCLUSIONS */
+    .teams-rack {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 18px;
     }
-    .team-card {
-      background: rgba(255, 255, 255, 0.035);
-      border: 1px solid var(--card-border);
+    .team-bay {
+      background: radial-gradient(circle at 50% 10%, #0d111a 0%, #040509 100%);
+      border: 2px solid #1a2030;
       border-radius: 20px;
       padding: 16px 20px;
+      box-shadow: 
+        inset 0 6px 16px rgba(0,0,0,0.9),
+        0 1px 0 rgba(255,255,255,0.12);
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
-    .team-header-row {
+    .team-header-line {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .team-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 15px;
-      font-weight: 800;
+    .team-tag {
+      font-size: 15px; font-weight: 900; letter-spacing: 0.5px;
+      display: flex; align-items: center; gap: 8px;
     }
-    .team-score-stepper {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+    .score-control {
+      display: flex; align-items: center; gap: 8px;
     }
-    .score-circle-btn {
-      width: 32px; height: 32px; border-radius: 50%;
-      border: 1px solid var(--card-border);
-      background: rgba(255, 255, 255, 0.08);
-      color: #fff; font-size: 18px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: transform 0.1s;
+    .step-knob {
+      width: 36px; height: 36px; border-radius: 10px;
+      border: none;
+      background: linear-gradient(180deg, #334155, #1e293b);
+      color: #fff; font-size: 20px; font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #0f172a, 0 6px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+      transition: all 0.08s;
     }
-    .score-circle-btn:active { transform: scale(0.9); }
-    .score-value {
-      font-size: 32px; font-weight: 900; min-width: 38px; text-align: center;
+    .step-knob:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #0f172a;
+    }
+    .score-readout {
+      font-size: 34px; font-weight: 900; min-width: 40px; text-align: center;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
       font-variant-numeric: tabular-nums;
     }
 
-    .exclusion-tray {
-      border-top: 1px solid var(--card-border-subtle);
+    .exclusion-shelf {
+      border-top: 1px solid rgba(255,255,255,0.08);
       padding-top: 10px;
     }
-    .ex-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-tertiary);
-      letter-spacing: 1px;
-      text-transform: uppercase;
+    .shelf-title {
+      font-size: 11px; font-weight: 800; color: #64748b;
+      letter-spacing: 1px; text-transform: uppercase;
+      display: flex; justify-content: space-between; align-items: center;
       margin-bottom: 8px;
     }
-    .btn-add-ex {
-      background: rgba(255, 59, 48, 0.15);
-      border: 1px solid rgba(255, 59, 48, 0.35);
-      color: var(--system-red);
+    .btn-add-cap {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #ef4444;
       font-size: 11px; font-weight: 800;
-      padding: 3px 10px; border-radius: 20px;
+      padding: 3px 10px; border-radius: 8px;
       cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
-    .ex-chips-wrap {
-      display: flex; gap: 8px; flex-wrap: wrap; min-height: 28px; align-items: center;
+    .chips-tray {
+      display: flex; gap: 8px; flex-wrap: wrap; min-height: 30px; align-items: center;
     }
-    .apple-ex-badge {
-      background: rgba(255, 59, 48, 0.2);
-      border: 1px solid rgba(255, 59, 48, 0.4);
-      padding: 4px 10px; border-radius: 20px;
-      font-size: 12px; font-weight: 700;
+    .cap-badge-3d {
+      background: linear-gradient(180deg, #991b1b, #7f1d1d);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 4px 10px; border-radius: 10px;
+      font-size: 12px; font-weight: 800;
+      box-shadow: 0 3px 0 #450a0a, 0 4px 8px rgba(0,0,0,0.4);
       display: flex; align-items: center; gap: 6px;
     }
-    .apple-ex-badge.done {
-      background: rgba(52, 199, 89, 0.2);
-      border-color: rgba(52, 199, 89, 0.4);
+    .cap-badge-3d.cleared {
+      background: linear-gradient(180deg, #059669, #047857);
+      box-shadow: 0 3px 0 #064e3b;
     }
-    .ex-close { cursor: pointer; opacity: 0.6; font-size: 14px; }
+    .badge-x { cursor: pointer; opacity: 0.7; font-size: 14px; }
 
     /* ================================================= */
-    /* VIRTUAL CTS POOL DECK HARDWARE DISPLAY            */
+    /* VIRTUAL POOL DECK HARDWARE RACK                   */
     /* ================================================= */
-    .hardware-chassis {
+    .hardware-enclosure {
       background: #000;
-      border: 2px solid #232838;
-      border-radius: 24px;
-      padding: 20px;
+      border: 3px solid #1e2436;
+      border-radius: 26px;
+      padding: 22px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      box-shadow: 0 16px 40px rgba(0,0,0,0.8), inset 0 0 24px rgba(0,0,0,0.9);
+      gap: 18px;
+      box-shadow: 
+        0 20px 50px rgba(0,0,0,0.9),
+        inset 0 0 30px rgba(0,0,0,0.95);
       position: relative;
     }
-    .chassis-tag {
-      position: absolute;
-      top: -11px;
-      left: 20px;
-      background: #232838;
-      color: #94a3b8;
-      font-size: 10px;
-      font-weight: 800;
-      letter-spacing: 1.2px;
-      padding: 2px 10px;
-      border-radius: 6px;
+    .rack-stamp {
+      position: absolute; top: -12px; left: 24px;
+      background: #1e2436; color: #94a3b8;
+      font-size: 10px; font-weight: 900; letter-spacing: 1.5px;
+      padding: 2px 10px; border-radius: 6px;
       text-transform: uppercase;
     }
-    .led-frame {
-      background: #05060a;
-      border: 1px solid #1a1e2b;
-      border-radius: 16px;
+    .led-glass {
+      background: #020305;
+      border: 2px solid #131724;
+      border-radius: 18px;
       padding: 16px;
       display: flex;
       justify-content: space-around;
       align-items: center;
+      box-shadow: inset 0 8px 24px rgba(0,0,0,0.95);
     }
-    .seven-segment {
+    .seven-seg {
       font-family: "Courier New", Courier, monospace;
       font-weight: 900;
-      letter-spacing: 3px;
-      padding: 8px 14px;
+      letter-spacing: 4px;
+      padding: 8px 16px;
       border-radius: 8px;
-      background: #020305;
-      border: 1px solid #141722;
-      text-shadow: 0 0 14px currentColor;
+      background: #000;
+      border: 1px solid #141724;
+      text-shadow: 0 0 16px currentColor;
     }
-    .led-shot { font-size: 72px; color: var(--led-amber); min-width: 130px; text-align: center; }
-    .led-shot.horn { color: var(--led-red); animation: blink 0.3s infinite alternate; }
-    .led-game { font-size: 48px; color: #38bdf8; min-width: 180px; text-align: center; }
-    @keyframes blink { from { opacity: 1; } to { opacity: 0.25; } }
+    .led-shot { font-size: 74px; color: var(--led-amber); min-width: 140px; text-align: center; }
+    .led-shot.horn-active { color: var(--led-red); animation: stroboflash 0.25s infinite alternate; }
+    .led-game { font-size: 50px; color: #38bdf8; min-width: 190px; text-align: center; }
+    @keyframes stroboflash { from { opacity: 1; } to { opacity: 0.2; } }
 
-    /* SERIAL SNIFFER TERMINAL */
-    .sniffer-terminal {
-      background: #06080e;
-      border: 1px solid #1e2436;
+    /* SERIAL BUS MONITOR */
+    .bus-monitor {
+      background: #040508;
+      border: 1px solid #1a2033;
       border-radius: 20px;
       padding: 16px;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
-    .sniffer-log {
+    .bus-log {
       font-family: "SF Mono", Monaco, Consolas, monospace;
       font-size: 11px;
-      background: #020306;
-      border: 1px solid #131724;
-      border-radius: 10px;
-      padding: 10px;
+      background: #000;
+      border: 1px solid #101420;
+      border-radius: 12px;
+      padding: 12px;
       height: 200px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 4px;
     }
-    .s-line { display: flex; gap: 10px; color: #cbd5e1; }
-    .s-time { color: #64748b; }
-    .s-chan { color: #38bdf8; }
-    .s-hex { color: #c084fc; }
-    .s-txt { color: #4ade80; }
+    .b-line { display: flex; gap: 10px; color: #cbd5e1; }
+    .b-time { color: #64748b; }
+    .b-chan { color: #38bdf8; }
+    .b-hex { color: #c084fc; }
+    .b-txt { color: #4ade80; }
   </style>
 </head>
 <body>
@@ -492,176 +576,175 @@
       <div class="brand-icon">🤽</div>
       <div>
         <div class="brand-title">PoloPad Pro</div>
-        <div class="brand-subtitle">First-Party Apple Human Interface Architecture</div>
+        <div class="brand-sub">Physical 3D Instrument Architecture &bull; Water Polo Timing Rig</div>
       </div>
     </div>
-    <div class="glass-pill">
-      <div class="status-dot"></div>
-      <span>BLE Connected &bull; Colorado Time Systems (9600-8-E-1)</span>
+    <div class="status-capsule">
+      <div class="beacon-bulb"></div>
+      <span>CTS 9600-8-E-1 SERIAL ACTIVE</span>
     </div>
   </header>
 
-  <!-- MAIN STAGE -->
   <div class="main-grid">
 
-    <!-- LEFT: IPAD PRO FIRST-PARTY CONSOLE -->
-    <div class="ipad-canvas">
+    <!-- LEFT: MACHINED INSTRUMENT CHASSIS -->
+    <div class="machined-deck">
+      <div class="chassis-screw screw-tl"></div>
+      <div class="chassis-screw screw-tr"></div>
+      <div class="chassis-screw screw-bl"></div>
+      <div class="chassis-screw screw-br"></div>
 
-      <!-- TOP HUD -->
-      <div class="hud-bar">
-        <div class="segmented-control">
-          <button class="seg-btn active" onclick="setPeriod(1)">Q1</button>
-          <button class="seg-btn" onclick="setPeriod(2)">Q2</button>
-          <button class="seg-btn" onclick="setPeriod(3)">Q3</button>
-          <button class="seg-btn" onclick="setPeriod(4)">Q4</button>
-          <button class="seg-btn" onclick="setPeriod(5)">OT</button>
+      <!-- TOP PERIOD SELECTOR RACK -->
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div class="period-rack">
+          <button class="period-key active" onclick="setPeriod(1)">Q1</button>
+          <button class="period-key" onclick="setPeriod(2)">Q2</button>
+          <button class="period-key" onclick="setPeriod(3)">Q3</button>
+          <button class="period-key" onclick="setPeriod(4)">Q4</button>
+          <button class="period-key" onclick="setPeriod(5)">OT</button>
         </div>
 
-        <div style="font-size: 13px; font-weight: 700; color: var(--text-tertiary); letter-spacing: 0.5px;">
-          IPADOS DECK SURFACE
+        <div style="font-size: 11px; font-weight: 900; letter-spacing: 1.5px; color: #475569;">
+          PRECISION POOL DECK CONSOLE
         </div>
       </div>
 
-      <!-- HERO CLOCKS -->
+      <!-- HERO RECESSED CLOCKS BAR -->
       <div class="hero-clocks-bar">
-        <!-- GAME CLOCK -->
-        <div class="glass-card">
-          <div class="card-caption">
-            <span>⏱️</span> MASTER GAME CLOCK
+        <!-- GAME CLOCK BAY -->
+        <div class="recessed-bay">
+          <div>
+            <div class="caption-tag">⏱️ MASTER GAME CLOCK</div>
+            <div class="clock-digits" id="appGameClock">08:00.0</div>
           </div>
-          <div class="master-btn-row">
-            <div class="game-clock-digits" id="appGameClock">08:00.0</div>
-            <button class="btn-apple-pill start" id="btnRun" onclick="toggleStartStop()">
-              ▶ START
-            </button>
-          </div>
+          <button class="plunger-btn start" id="btnRun" onclick="toggleStartStop()">
+            ▶ START
+          </button>
         </div>
 
-        <!-- SHOT CLOCK -->
-        <div class="glass-card shot-card">
-          <div class="card-caption">
-            <span>🚨</span> SHOT CLOCK
-          </div>
-          <div class="shot-clock-digits" id="appShotClock">30</div>
+        <!-- SHOT CLOCK BAY -->
+        <div class="recessed-bay" style="flex-direction:column; align-items:flex-end;">
+          <div class="caption-tag">⚡ SHOT CLOCK</div>
+          <div class="shot-digits" id="appShotClock">30</div>
         </div>
       </div>
 
-      <!-- TWIN 30s & 20s RESET ACTUATORS -->
-      <div class="twin-actuators">
-        <!-- 30 SECONDS -->
-        <button class="actuator-btn actuator-30" onclick="reset30()">
-          <div class="big-num">30</div>
-          <div class="btn-caption">↺ TURNOVER (Full Reset)</div>
+      <!-- TWIN 3D HEAVY ACTUATORS (30s & 20s) -->
+      <div class="actuators-rack">
+        <button class="heavy-actuator actuator-30" onclick="reset30()">
+          <div class="actuator-num">30</div>
+          <div class="actuator-label">↺ FULL TURNOVER</div>
         </button>
 
-        <!-- 20 SECONDS -->
-        <button class="actuator-btn actuator-20" onclick="reset20()">
-          <div class="big-num">20</div>
-          <div class="btn-caption">⚠️ REBOUND / EXCLUSION</div>
+        <button class="heavy-actuator actuator-20" onclick="reset20()">
+          <div class="actuator-num">20</div>
+          <div class="actuator-label">⚠️ REBOUND / EJECTION</div>
         </button>
       </div>
 
-      <!-- UTILITY DOCK -->
-      <div class="utility-dock">
-        <button class="util-btn btn-undo-purple" onclick="undoReset()">
+      <!-- 3D MECHANICAL UTILITY DOCK -->
+      <div class="dock-row">
+        <button class="dock-key dock-undo" onclick="undoReset()">
           ↺ UNDO RESET
         </button>
-        <button class="util-btn" onclick="adjustShot(-1)">-1s Shot</button>
-        <button class="util-btn" onclick="adjustShot(1)">+1s Shot</button>
-        <button class="util-btn btn-horn-red" onmousedown="fireHorn(1200)">
+        <button class="dock-key dock-adjust" onclick="adjustShot(-1)">-1s Shot</button>
+        <button class="dock-key dock-adjust" onclick="adjustShot(1)">+1s Shot</button>
+        <button class="dock-key dock-horn" onmousedown="fireHorn(1200)">
           🔊 HORN
         </button>
       </div>
 
-      <!-- TEAMS & EXCLUSIONS -->
-      <div class="teams-grid">
+      <!-- RECESSED TEAM BAYS -->
+      <div class="teams-rack">
         <!-- WHITE TEAM -->
-        <div class="team-card">
-          <div class="team-header-row">
-            <div class="team-badge">
-              <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#fff;"></span>
+        <div class="team-bay">
+          <div class="team-header-line">
+            <div class="team-tag">
+              <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#fff; box-shadow:0 0 8px #fff;"></span>
               <span>WHITE TEAM</span>
             </div>
-            <div class="team-score-stepper">
-              <button class="score-circle-btn" onclick="adjustScore('white', -1)">&minus;</button>
-              <span class="score-value" id="scoreWhite">0</span>
-              <button class="score-circle-btn" onclick="adjustScore('white', 1)">&plus;</button>
+            <div class="score-control">
+              <button class="step-knob" onclick="adjustScore('white', -1)">&minus;</button>
+              <span class="score-readout" id="scoreWhite">0</span>
+              <button class="step-knob" onclick="adjustScore('white', 1)">&plus;</button>
             </div>
           </div>
-          <div class="exclusion-tray">
-            <div class="ex-header">
-              <span>20s EXCLUSIONS</span>
-              <button class="btn-add-ex" onclick="promptExclusion('white')">+ Add Ejection</button>
+
+          <div class="exclusion-shelf">
+            <div class="shelf-title">
+              <span>20s MAJOR FOULS</span>
+              <button class="btn-add-cap" onclick="promptExclusion('white')">+ EJECT CAP</button>
             </div>
-            <div class="ex-chips-wrap" id="whiteExclusions"></div>
+            <div class="chips-tray" id="whiteExclusions"></div>
           </div>
         </div>
 
         <!-- DARK TEAM -->
-        <div class="team-card">
-          <div class="team-header-row">
-            <div class="team-badge" style="color: #60a5fa;">
-              <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#60a5fa;"></span>
+        <div class="team-bay">
+          <div class="team-header-line">
+            <div class="team-tag" style="color: #60a5fa;">
+              <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#60a5fa; box-shadow:0 0 8px #60a5fa;"></span>
               <span>DARK TEAM</span>
             </div>
-            <div class="team-score-stepper">
-              <button class="score-circle-btn" onclick="adjustScore('dark', -1)">&minus;</button>
-              <span class="score-value" id="scoreDark">0</span>
-              <button class="score-circle-btn" onclick="adjustScore('dark', 1)">&plus;</button>
+            <div class="score-control">
+              <button class="step-knob" onclick="adjustScore('dark', -1)">&minus;</button>
+              <span class="score-readout" id="scoreDark">0</span>
+              <button class="step-knob" onclick="adjustScore('dark', 1)">&plus;</button>
             </div>
           </div>
-          <div class="exclusion-tray">
-            <div class="ex-header">
-              <span>20s EXCLUSIONS</span>
-              <button class="btn-add-ex" onclick="promptExclusion('dark')">+ Add Ejection</button>
+
+          <div class="exclusion-shelf">
+            <div class="shelf-title">
+              <span>20s MAJOR FOULS</span>
+              <button class="btn-add-cap" onclick="promptExclusion('dark')">+ EJECT CAP</button>
             </div>
-            <div class="ex-chips-wrap" id="darkExclusions"></div>
+            <div class="chips-tray" id="darkExclusions"></div>
           </div>
         </div>
       </div>
 
     </div>
 
-    <!-- RIGHT: PHYSICAL POOL DECK HARDWARE & RS-232 BUS -->
-    <div style="display: flex; flex-direction: column; gap: 20px;">
+    <!-- RIGHT: PHYSICAL POOL DECK HARDWARE RACK -->
+    <div style="display: flex; flex-direction: column; gap: 22px;">
 
       <!-- VIRTUAL COLORADO TIME SYSTEMS HARDWARE -->
-      <div class="hardware-chassis">
-        <div class="chassis-tag">COLORADO TIME SYSTEMS &bull; PHYSICAL SCOREBOARD</div>
+      <div class="hardware-enclosure">
+        <div class="rack-stamp">CTS AQUATICS &bull; PHYSICAL SCOREBOARD RACK</div>
 
-        <div class="led-frame">
+        <div class="led-glass">
           <div style="text-align: center;">
-            <div style="font-size: 11px; font-weight:800; color:#64748b; margin-bottom: 6px;">SC-500 SHOT CLOCK</div>
-            <div class="seven-segment led-shot" id="ctsShotClock">30</div>
+            <div style="font-size: 11px; font-weight:900; color:#475569; margin-bottom: 6px;">SC-500 SHOT CLOCK</div>
+            <div class="seven-seg led-shot" id="ctsShotClock">30</div>
           </div>
 
           <div style="text-align: center;">
-            <div style="font-size: 11px; font-weight:800; color:#64748b; margin-bottom: 6px;">GAME TIME</div>
-            <div class="seven-segment led-game" id="ctsGameClock">08:00</div>
+            <div style="font-size: 11px; font-weight:900; color:#475569; margin-bottom: 6px;">GAME TIME</div>
+            <div class="seven-seg led-game" id="ctsGameClock">08:00</div>
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 8px;">
-          <div style="display:flex; gap: 16px; font-size: 14px; font-weight: 700; color: #94a3b8;">
-            <span>WHITE: <strong id="ctsScoreWhite" style="color:#fff;">0</strong></span>
-            <span>PERIOD: <strong id="ctsPeriod" style="color:var(--system-yellow);">1</strong></span>
-            <span>DARK: <strong id="ctsScoreDark" style="color:#60a5fa;">0</strong></span>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 10px;">
+          <div style="display:flex; gap: 16px; font-size: 14px; font-weight: 800; color: #94a3b8;">
+            <span>W: <strong id="ctsScoreWhite" style="color:#fff;">0</strong></span>
+            <span>PERIOD: <strong id="ctsPeriod" style="color:var(--led-amber);">1</strong></span>
+            <span>D: <strong id="ctsScoreDark" style="color:#60a5fa;">0</strong></span>
           </div>
 
-          <div style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:800; color:#64748b;">
-            <div id="hornBulb" style="width:14px; height:14px; border-radius:50%; background:#334155;"></div>
+          <div style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:900; color:#64748b;">
+            <div id="hornBulb" style="width:14px; height:14px; border-radius:50%; background:#1e293b;"></div>
             <span>ELECTRIC HORN</span>
           </div>
         </div>
       </div>
 
-      <!-- CTS SERIAL BUS SNIFFER -->
-      <div class="sniffer-terminal">
-        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; color:#94a3b8;">
+      <!-- LIVE CTS SERIAL BUS MONITOR -->
+      <div class="bus-monitor">
+        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:#94a3b8;">
           <span>CTS RS-232 BUS OUTPUT (9600-8-E-1)</span>
-          <span style="color:var(--system-green);">STREAM LIVE</span>
+          <span style="color:var(--green-surf);">10Hz LIVE</span>
         </div>
-        <div class="sniffer-log" id="snifferLog"></div>
+        <div class="bus-log" id="busLog"></div>
       </div>
 
     </div>
@@ -669,29 +752,53 @@
   </div>
 
   <script>
-    // AUDIO SYNTHESIZER
+    // AUDIO SYNTHESIZER (MECHANICAL SWITCH CLICK + AQUATIC HORN)
     let audioCtx = null;
-    function playHornSound(durationMs = 1200) {
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playMechanicalClick() {
       try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
 
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(270, audioCtx.currentTime);
-        osc.frequency.linearRampToValueAtTime(250, audioCtx.currentTime + (durationMs/1000));
+        // Crisp mechanical micro-click (1200Hz down to 200Hz in 15ms)
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(1400, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.015);
 
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + (durationMs/1000));
+        gain.gain.setValueAtTime(0.18, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.015);
 
         osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        gain.connect(ctx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + (durationMs/1000));
-      } catch (e) {
-        console.warn("Audio blocked:", e);
-      }
+        osc.stop(ctx.currentTime + 0.015);
+      } catch (e) {}
+    }
+
+    function playHornSound(durationMs = 1200) {
+      try {
+        const ctx = getAudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(270, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(250, ctx.currentTime + (durationMs/1000));
+
+        gain.gain.setValueAtTime(0.35, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + (durationMs/1000));
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + (durationMs/1000));
+      } catch (e) {}
     }
 
     // STATE ENGINE
@@ -712,24 +819,28 @@
     }
 
     function toggleStartStop() {
+      playMechanicalClick();
       saveSnapshot();
       isRunning = !isRunning;
       updateUI();
     }
 
     function reset30() {
+      playMechanicalClick();
       saveSnapshot();
       shotTimeMs = 30 * 1000;
       updateUI();
     }
 
     function reset20() {
+      playMechanicalClick();
       saveSnapshot();
       shotTimeMs = 20 * 1000;
       updateUI();
     }
 
     function undoReset() {
+      playMechanicalClick();
       if (undoStack.length === 0) return;
       const snap = undoStack.pop();
       gameTimeMs = snap.gameTimeMs;
@@ -739,6 +850,7 @@
     }
 
     function adjustShot(delta) {
+      playMechanicalClick();
       saveSnapshot();
       let s = Math.floor(shotTimeMs / 1000);
       shotTimeMs = Math.max(0, Math.min(35, s + delta)) * 1000;
@@ -746,6 +858,7 @@
     }
 
     function fireHorn(durationMs = 1200) {
+      playMechanicalClick();
       hornActive = true;
       hornUntilMs = Date.now() + durationMs;
       playHornSound(durationMs);
@@ -753,23 +866,26 @@
     }
 
     function setPeriod(p) {
+      playMechanicalClick();
       period = p;
       gameTimeMs = 8 * 60 * 1000;
       shotTimeMs = 30 * 1000;
       isRunning = false;
-      document.querySelectorAll('.seg-btn').forEach((b, i) => {
+      document.querySelectorAll('.period-key').forEach((b, i) => {
         b.classList.toggle('active', (i + 1) === p);
       });
       updateUI();
     }
 
     function adjustScore(team, delta) {
+      playMechanicalClick();
       if (team === 'white') scoreWhite = Math.max(0, scoreWhite + delta);
       else scoreDark = Math.max(0, scoreDark + delta);
       updateUI();
     }
 
     function promptExclusion(team) {
+      playMechanicalClick();
       const cap = prompt(`Enter Cap # for ${team.toUpperCase()} exclusion (1-20):`, "4");
       if (!cap) return;
       exclusions.push({ id: Date.now(), team, cap: parseInt(cap) || 1, remaining: 20 });
@@ -777,6 +893,7 @@
     }
 
     function removeExclusion(id) {
+      playMechanicalClick();
       exclusions = exclusions.filter(e => e.id !== id);
       renderExclusions();
     }
@@ -809,7 +926,7 @@
       }
 
       updateUI();
-      logCtsStream();
+      logBus();
     }, 100);
 
     function updateUI() {
@@ -820,23 +937,23 @@
 
       document.getElementById('appGameClock').textContent = timeStr;
       const runBtn = document.getElementById('btnRun');
-      runBtn.textContent = isRunning ? '⏸ PAUSE' : '▶ START';
-      runBtn.className = `btn-apple-pill ${isRunning ? 'stop' : 'start'}`;
+      runBtn.textContent = isRunning ? '⏸ STOP' : '▶ START';
+      runBtn.className = `plunger-btn ${isRunning ? 'stop' : 'start'}`;
 
       const shotSec = Math.floor(shotTimeMs / 1000);
       const shotTenths = Math.floor((shotTimeMs % 1000) / 100);
       const shotStr = shotSec >= 10 ? `${shotSec}` : `${shotSec}.${shotTenths}`;
       const appShot = document.getElementById('appShotClock');
       appShot.textContent = shotStr;
-      appShot.classList.toggle('low', shotSec <= 5);
+      appShot.classList.toggle('danger', shotSec <= 5);
 
       document.getElementById('scoreWhite').textContent = scoreWhite;
       document.getElementById('scoreDark').textContent = scoreDark;
 
-      // CTS Hardware Display
+      // Hardware CTS Display
       const ctsShot = document.getElementById('ctsShotClock');
       ctsShot.textContent = shotStr;
-      ctsShot.classList.toggle('horn', shotTimeMs === 0 || hornActive);
+      ctsShot.classList.toggle('horn-active', shotTimeMs === 0 || hornActive);
 
       document.getElementById('ctsGameClock').textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
       document.getElementById('ctsScoreWhite').textContent = scoreWhite;
@@ -844,8 +961,8 @@
       document.getElementById('ctsPeriod').textContent = period;
 
       const bulb = document.getElementById('hornBulb');
-      bulb.style.background = hornActive ? 'var(--system-red)' : '#334155';
-      bulb.style.boxShadow = hornActive ? '0 0 14px var(--system-red)' : 'none';
+      bulb.style.background = hornActive ? 'var(--led-red)' : '#1e293b';
+      bulb.style.boxShadow = hornActive ? '0 0 16px var(--led-red)' : 'none';
     }
 
     function renderExclusions() {
@@ -853,20 +970,20 @@
         const wrap = document.getElementById(`${team}Exclusions`);
         const list = exclusions.filter(e => e.team === team);
         wrap.innerHTML = list.map(e => `
-          <div class="apple-ex-badge ${e.remaining === 0 ? 'done' : ''}">
-            <span>Cap #${e.cap}: <strong>${e.remaining}s</strong></span>
-            <span class="ex-close" onclick="removeExclusion(${e.id})">&times;</span>
+          <div class="cap-badge-3d ${e.remaining === 0 ? 'cleared' : ''}">
+            <span>#${e.cap}: <strong>${e.remaining}s</strong></span>
+            <span class="badge-x" onclick="removeExclusion(${e.id})">&times;</span>
           </div>
         `).join('');
       });
     }
 
     let logCounter = 0;
-    function logCtsStream() {
+    function logBus() {
       logCounter++;
       if (logCounter % 5 !== 0) return;
 
-      const log = document.getElementById('snifferLog');
+      const log = document.getElementById('busLog');
       const now = new Date().toISOString().substring(11, 23);
       const shotSec = Math.floor(shotTimeMs / 1000);
       const header = (0x80 | (0x05 << 1)).toString(16).toUpperCase();
@@ -874,12 +991,12 @@
       const hex = Array.from(txt).map(c => c.charCodeAt(0).toString(16).toUpperCase()).join(' ');
 
       const row = document.createElement('div');
-      row.className = 's-line';
+      row.className = 'b-line';
       row.innerHTML = `
-        <span class="s-time">${now}</span>
-        <span class="s-chan">CH 0x05 [SHOT]</span>
-        <span class="s-hex">0x${header} ${hex}</span>
-        <span class="s-txt">"${txt}"</span>
+        <span class="b-time">${now}</span>
+        <span class="b-chan">CH 0x05 [SHOT]</span>
+        <span class="b-hex">0x${header} ${hex}</span>
+        <span class="b-txt">"${txt}"</span>
       `;
       log.appendChild(row);
       while (log.children.length > 20) log.removeChild(log.firstChild);
