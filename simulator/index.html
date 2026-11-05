@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PoloBridge & PoloPad: End-to-End Water Polo Simulator</title>
+  <style>
+    :root {
+      --bg: #0b0d13;
+      --card-bg: #141721;
+      --border: #222738;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-orange: #f59e0b;
+      --accent-blue: #3b82f6;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --led-amber: #ffb703;
+      --led-red: #ff3333;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 24px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+    header .badge {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      font-size: 13px;
+      font-family: monospace;
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 1000px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ================================================= */
+    /* VIRTUAL COLORADO TIME SYSTEMS HARDWARE DISPLAY   */
+    /* ================================================= */
+    .hardware-rack {
+      background: #000;
+      border: 4px solid #1f2430;
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.9);
+      position: relative;
+    }
+    .hardware-tag {
+      position: absolute;
+      top: -12px;
+      left: 20px;
+      background: #2a3042;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 2px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .led-cluster {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: #080a0f;
+      border: 2px solid #161a24;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .display-box {
+      text-align: center;
+    }
+    .display-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #64748b;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .seven-segment {
+      font-family: "Courier New", Courier, monospace;
+      font-weight: 900;
+      letter-spacing: 4px;
+      line-height: 1;
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: #030406;
+      border: 1px solid #1a1e2b;
+      text-shadow: 0 0 12px currentColor;
+    }
+    .shot-display {
+      font-size: 78px;
+      color: var(--led-amber);
+      min-width: 140px;
+    }
+    .shot-display.violation {
+      color: var(--led-red);
+      animation: flash 0.3s infinite alternate;
+    }
+    .game-display {
+      font-size: 52px;
+      color: #38bdf8;
+      min-width: 200px;
+    }
+    .score-display {
+      font-size: 40px;
+      color: #4ade80;
+      min-width: 80px;
+    }
+
+    @keyframes flash {
+      from { opacity: 1; }
+      to { opacity: 0.3; }
+    }
+
+    .horn-indicator {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #475569;
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: #0a0d14;
+      border: 1px solid #1e2433;
+    }
+    .horn-bulb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #334155;
+      transition: all 0.1s;
+    }
+    .horn-bulb.active {
+      background: var(--accent-red);
+      box-shadow: 0 0 16px var(--accent-red);
+    }
+
+    /* ================================================= */
+    /* IPAD POLOPAD APP CONSOLE (TABLE WORKER UI)        */
+    /* ================================================= */
+    .ipad-frame {
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .ipad-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .quarter-selector {
+      display: flex;
+      gap: 6px;
+    }
+    .q-btn {
+      background: #1e2433;
+      color: var(--text);
+      border: 1px solid #2d374d;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .q-btn.active {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    .master-clock-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f131d;
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+    .app-game-time {
+      font-size: 42px;
+      font-weight: 900;
+      font-family: monospace;
+      letter-spacing: 2px;
+    }
+    .btn-toggle-run {
+      font-size: 20px;
+      font-weight: 900;
+      padding: 14px 32px;
+      border-radius: 12px;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: all 0.1s;
+    }
+    .btn-toggle-run.start { background: var(--accent-green); }
+    .btn-toggle-run.stop { background: var(--accent-red); }
+    .btn-toggle-run:active { transform: scale(0.97); }
+
+    /* GIANT SHOT CLOCK RESET BUTTONS */
+    .shot-buttons-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .giant-reset-btn {
+      height: 120px;
+      border-radius: 16px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      transition: transform 0.08s, filter 0.08s;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    }
+    .giant-reset-btn:active { transform: scale(0.97); filter: brightness(1.2); }
+    .giant-reset-btn .digit { font-size: 54px; font-weight: 900; line-height: 1; }
+    .giant-reset-btn .label { font-size: 15px; font-weight: 800; letter-spacing: 0.5px; margin-top: 4px; }
+    .btn-30 { background: #059669; }
+    .btn-20 { background: #d97706; }
+
+    /* ACTION BAR */
+    .action-bar {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    .act-btn {
+      background: #1e2433;
+      border: 1px solid #2d374d;
+      color: #fff;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .act-btn:active { transform: scale(0.96); }
+    .btn-undo { background: #6b21a8; border-color: #7e22ce; }
+    .btn-horn { background: #b91c1c; border-color: #dc2626; font-weight: 900; }
+
+    /* TEAMS & EXCLUSIONS */
+    .teams-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .team-box {
+      background: #0f131d;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .team-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .team-name { font-weight: 900; font-size: 17px; }
+    .score-stepper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .step-btn {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 1px solid #334155; background: #1e293b;
+      color: #fff; font-size: 18px; font-weight: 900;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .score-val { font-size: 26px; font-weight: 900; min-width: 32px; text-align: center; }
+
+    .exclusion-zone {
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+    .ex-title {
+      font-size: 12px; font-weight: 700; color: #64748b;
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px;
+    }
+    .add-ex-btn {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: var(--accent-red);
+      font-size: 11px; font-weight: 700;
+      padding: 2px 8px; border-radius: 6px; cursor: pointer;
+    }
+    .exclusion-chips {
+      display: flex; gap: 8px; flex-wrap: wrap; min-height: 32px;
+    }
+    .chip {
+      background: rgba(239, 68, 68, 0.25);
+      border: 1px solid var(--accent-red);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .chip.done {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: var(--accent-green);
+    }
+    .chip-close { cursor: pointer; font-size: 14px; opacity: 0.7; }
+
+    /* ================================================= */
+    /* LIVE RS-232 PACKET INSPECTOR                      */
+    /* ================================================= */
+    .packet-inspector {
+      background: #090c13;
+      border: 1px solid #1f2536;
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .packet-inspector h3 {
+      font-size: 14px;
+      color: #94a3b8;
+      font-family: monospace;
+      display: flex;
+      justify-content: space-between;
+    }
+    .packet-log {
+      font-family: "SF Mono", Monaco, Consolas, monospace;
+      font-size: 12px;
+      background: #030407;
+      border: 1px solid #151926;
+      border-radius: 8px;
+      padding: 12px;
+      height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .log-line {
+      display: flex;
+      gap: 12px;
+      color: #cbd5e1;
+    }
+    .log-time { color: #64748b; min-width: 65px; }
+    .log-chan { color: #38bdf8; min-width: 140px; }
+    .log-hex { color: #a855f7; min-width: 170px; }
+    .log-ascii { color: #4ade80; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🤽 PoloBridge & PoloPad: System Simulator</h1>
+    <div class="badge">
+      <div class="status-dot"></div>
+      BLE LINK ACTIVE &bull; 9600 BAUD (8-E-1)
+    </div>
+  </header>
+
+  <div class="main-grid">
+
+    <!-- LEFT: IPAD POLOPAD CONSOLE -->
+    <div class="ipad-frame">
+      <div class="ipad-header">
+        <div class="quarter-selector">
+          <button class="q-btn active" onclick="setPeriod(1)">Q1</button>
+          <button class="q-btn" onclick="setPeriod(2)">Q2</button>
+          <button class="q-btn" onclick="setPeriod(3)">Q3</button>
+          <button class="q-btn" onclick="setPeriod(4)">Q4</button>
+          <button class="q-btn" onclick="setPeriod(5)">OT</button>
+        </div>
+        <div style="font-size: 14px; font-weight: 700; color: #94a3b8;">
+          IPAD DECK CONSOLE
+        </div>
+      </div>
+
+      <!-- MASTER GAME CLOCK -->
+      <div class="master-clock-bar">
+        <div>
+          <div style="font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 1px;">MASTER GAME CLOCK</div>
+          <div class="app-game-time" id="appGameClock">08:00.0</div>
+        </div>
+        <button class="btn-toggle-run start" id="btnRun" onclick="toggleStartStop()">
+          ▶ START
+        </button>
+      </div>
+
+      <!-- GIANT 30s & 20s RESET BUTTONS -->
+      <div class="shot-buttons-row">
+        <button class="giant-reset-btn btn-30" onclick="reset30()">
+          <span class="digit">30</span>
+          <span class="label">RESET 30s (Turnover)</span>
+        </button>
+        <button class="giant-reset-btn btn-20" onclick="reset20()">
+          <span class="digit">20</span>
+          <span class="label">RESET 20s (Rebound / Ejection)</span>
+        </button>
+      </div>
+
+      <!-- QUICK ACTION BAR -->
+      <div class="action-bar">
+        <button class="act-btn btn-undo" onclick="undoReset()">↺ UNDO RESET</button>
+        <button class="act-btn" onclick="adjustShot(-1)">-1s Shot</button>
+        <button class="act-btn" onclick="adjustShot(1)">+1s Shot</button>
+        <button class="act-btn btn-horn" onmousedown="fireHorn(1200)">🔊 HORN</button>
+      </div>
+
+      <!-- TEAMS & 20s EXCLUSION COUNTERS -->
+      <div class="teams-grid">
+        <!-- WHITE TEAM -->
+        <div class="team-box">
+          <div class="team-header">
+            <span class="team-name">WHITE TEAM</span>
+            <div class="score-stepper">
+              <button class="step-btn" onclick="adjustScore('white', -1)">&minus;</button>
+              <span class="score-val" id="scoreWhite">0</span>
+              <button class="step-btn" onclick="adjustScore('white', 1)">&plus;</button>
+            </div>
+          </div>
+          <div class="exclusion-zone">
+            <div class="ex-title">
+              <span>20s EXCLUSIONS</span>
+              <button class="add-ex-btn" onclick="promptExclusion('white')">+ Add Ejection</button>
+            </div>
+            <div class="exclusion-chips" id="whiteExclusions"></div>
+          </div>
+        </div>
+
+        <!-- DARK TEAM -->
+        <div class="team-box">
+          <div class="team-header">
+            <span class="team-name" style="color: #60a5fa;">DARK TEAM</span>
+            <div class="score-stepper">
+              <button class="step-btn" onclick="adjustScore('dark', -1)">&minus;</button>
+              <span class="score-val" id="scoreDark">0</span>
+              <button class="step-btn" onclick="adjustScore('dark', 1)">&plus;</button>
+            </div>
+          </div>
+          <div class="exclusion-zone">
+            <div class="ex-title">
+              <span>20s EXCLUSIONS</span>
+              <button class="add-ex-btn" onclick="promptExclusion('dark')">+ Add Ejection</button>
+            </div>
+            <div class="exclusion-chips" id="darkExclusions"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: VIRTUAL POOL DECK HARDWARE & RS-232 SNIFFER -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+
+      <!-- VIRTUAL COLORADO TIME SYSTEMS HARDWARE -->
+      <div class="hardware-rack">
+        <div class="hardware-tag">COLORADO TIME SYSTEMS &bull; PHYSICAL SCOREBOARDS</div>
+
+        <div class="led-cluster">
+          <div class="display-box">
+            <div class="display-title">CTS SC-500 SHOT CLOCK</div>
+            <div class="seven-segment shot-display" id="ctsShotClock">30</div>
+          </div>
+
+          <div class="display-box">
+            <div class="display-title">GAME TIME</div>
+            <div class="seven-segment game-display" id="ctsGameClock">08:00</div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="led-cluster" style="padding: 10px 20px; gap: 20px;">
+            <div class="display-box">
+              <div class="display-title">WHITE</div>
+              <div class="seven-segment score-display" id="ctsScoreWhite">0</div>
+            </div>
+            <div class="display-box">
+              <div class="display-title">PERIOD</div>
+              <div class="seven-segment score-display" id="ctsPeriod" style="color: #facc15;">1</div>
+            </div>
+            <div class="display-box">
+              <div class="display-title">DARK</div>
+              <div class="seven-segment score-display" id="ctsScoreDark">0</div>
+            </div>
+          </div>
+
+          <div class="horn-indicator">
+            <div class="horn-bulb" id="hornBulb"></div>
+            <span>ELECTRIC HORN</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE CTS RS-232 STREAM INSPECTOR -->
+      <div class="packet-inspector">
+        <h3>
+          <span>CTS SERIAL BUS TAP (9600-8-E-1)</span>
+          <span style="color: var(--accent-green); font-size: 11px;">10Hz STREAM</span>
+        </h3>
+        <div class="packet-log" id="packetLog"></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // ==========================================
+    // AUDIO SYNTHESIZER (AQUATIC HORN SOUND)
+    // ==========================================
+    let audioCtx = null;
+    function playHornSound(durationMs = 1200) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        // Authentic dual frequency buzzer sound
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(280, audioCtx.currentTime); // Low horn drone
+        osc.frequency.linearRampToValueAtTime(260, audioCtx.currentTime + (durationMs/1000));
+
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + (durationMs/1000));
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + (durationMs/1000));
+      } catch (e) {
+        console.warn("Audio Context blocked until interaction:", e);
+      }
+    }
+
+    // ==========================================
+    // GAME STATE ENGINE (MIRRORS ESP32 FIRMWARE)
+    // ==========================================
+    let isRunning = false;
+    let gameTimeMs = 8 * 60 * 1000;
+    let shotTimeMs = 30 * 1000;
+    let scoreWhite = 0;
+    let scoreDark = 0;
+    let period = 1;
+    let hornActive = false;
+    let hornUntilMs = 0;
+
+    let exclusions = []; // { id, team, cap, remaining }
+    let undoStack = [];
+
+    function saveSnapshot() {
+      undoStack.push({ gameTimeMs, shotTimeMs, isRunning });
+      if (undoStack.length > 10) undoStack.shift();
+    }
+
+    function toggleStartStop() {
+      saveSnapshot();
+      isRunning = !isRunning;
+      updateUI();
+    }
+
+    function reset30() {
+      saveSnapshot();
+      shotTimeMs = 30 * 1000;
+      updateUI();
+    }
+
+    function reset20() {
+      saveSnapshot();
+      shotTimeMs = 20 * 1000;
+      updateUI();
+    }
+
+    function undoReset() {
+      if (undoStack.length === 0) return;
+      const snap = undoStack.pop();
+      gameTimeMs = snap.gameTimeMs;
+      shotTimeMs = snap.shotTimeMs;
+      isRunning = snap.isRunning;
+      updateUI();
+    }
+
+    function adjustShot(deltaSec) {
+      saveSnapshot();
+      let currentSec = Math.floor(shotTimeMs / 1000);
+      let newSec = Math.max(0, Math.min(35, currentSec + deltaSec));
+      shotTimeMs = newSec * 1000;
+      updateUI();
+    }
+
+    function fireHorn(durationMs = 1200) {
+      hornActive = true;
+      hornUntilMs = Date.now() + durationMs;
+      playHornSound(durationMs);
+      updateUI();
+    }
+
+    function setPeriod(p) {
+      period = p;
+      gameTimeMs = 8 * 60 * 1000;
+      shotTimeMs = 30 * 1000;
+      isRunning = false;
+      document.querySelectorAll('.q-btn').forEach((btn, idx) => {
+        btn.classList.toggle('active', (idx + 1) === p);
+      });
+      updateUI();
+    }
+
+    function adjustScore(team, delta) {
+      if (team === 'white') scoreWhite = Math.max(0, scoreWhite + delta);
+      else scoreDark = Math.max(0, scoreDark + delta);
+      updateUI();
+    }
+
+    function promptExclusion(team) {
+      const cap = prompt(`Enter Cap # for ${team.toUpperCase()} exclusion (1-20):`, "4");
+      if (!cap) return;
+      exclusions.push({
+        id: Date.now(),
+        team: team,
+        cap: parseInt(cap) || 1,
+        remaining: 20
+      });
+      // Water Polo rule: exclusion resets shot clock to 20s
+      reset20();
+    }
+
+    function removeExclusion(id) {
+      exclusions = exclusions.filter(e => e.id !== id);
+      renderExclusions();
+    }
+
+    // ==========================================
+    // TICK LOOP (100ms / 10Hz)
+    // ==========================================
+    setInterval(() => {
+      if (isRunning) {
+        if (gameTimeMs > 100) {
+          gameTimeMs -= 100;
+        } else {
+          gameTimeMs = 0;
+          isRunning = false;
+          fireHorn(2000); // End of quarter horn
+        }
+
+        if (shotTimeMs > 100) {
+          shotTimeMs -= 100;
+        } else {
+          shotTimeMs = 0;
+          fireHorn(1200); // Shot clock violation
+          shotTimeMs = 30 * 1000;
+        }
+
+        // Decrement exclusions
+        if (gameTimeMs % 1000 < 100) {
+          exclusions.forEach(ex => {
+            if (ex.remaining > 0) ex.remaining -= 1;
+          });
+          renderExclusions();
+        }
+      }
+
+      if (hornActive && Date.now() >= hornUntilMs) {
+        hornActive = false;
+      }
+
+      updateUI();
+      simulateCtsSerialStream();
+    }, 100);
+
+    // ==========================================
+    // UI RENDERING
+    // ==========================================
+    function formatTime(ms) {
+      const min = Math.floor(ms / 60000);
+      const sec = Math.floor((ms % 60000) / 1000);
+      const tenths = Math.floor((ms % 1000) / 100);
+      if (min > 0) {
+        return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+      } else {
+        return `${String(sec).padStart(2, '0')}.${tenths}`;
+      }
+    }
+
+    function updateUI() {
+      // iPad App Elements
+      const min = Math.floor(gameTimeMs / 60000);
+      const sec = Math.floor((gameTimeMs % 60000) / 1000);
+      const tenths = Math.floor((gameTimeMs % 1000) / 100);
+      document.getElementById('appGameClock').textContent =
+        `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}.${tenths}`;
+
+      const runBtn = document.getElementById('btnRun');
+      runBtn.textContent = isRunning ? '⏸ STOP' : '▶ START';
+      runBtn.className = `btn-toggle-run ${isRunning ? 'stop' : 'start'}`;
+
+      document.getElementById('scoreWhite').textContent = scoreWhite;
+      document.getElementById('scoreDark').textContent = scoreDark;
+
+      // Hardware CTS Elements
+      const shotSec = Math.floor(shotTimeMs / 1000);
+      const shotTenths = Math.floor((shotTimeMs % 1000) / 100);
+      const ctsShot = document.getElementById('ctsShotClock');
+      if (shotSec >= 10) {
+        ctsShot.textContent = `${shotSec}`;
+      } else {
+        ctsShot.textContent = `${shotSec}.${shotTenths}`;
+      }
+      ctsShot.classList.toggle('violation', shotTimeMs === 0 || (isRunning && shotSec <= 5));
+
+      document.getElementById('ctsGameClock').textContent = formatTime(gameTimeMs);
+      document.getElementById('ctsScoreWhite').textContent = scoreWhite;
+      document.getElementById('ctsScoreDark').textContent = scoreDark;
+      document.getElementById('ctsPeriod').textContent = period;
+
+      document.getElementById('hornBulb').classList.toggle('active', hornActive);
+    }
+
+    function renderExclusions() {
+      ['white', 'dark'].forEach(team => {
+        const container = document.getElementById(`${team}Exclusions`);
+        const list = exclusions.filter(e => e.team === team);
+        container.innerHTML = list.map(e => `
+          <div class="chip ${e.remaining === 0 ? 'done' : ''}">
+            <span>Cap #${e.cap}: <strong>${e.remaining}s</strong></span>
+            <span class="chip-close" onclick="removeExclusion(${e.id})">&times;</span>
+          </div>
+        `).join('');
+      });
+    }
+
+    // ==========================================
+    // CTS RS-232 SERIAL PACKET SIMULATOR
+    // ==========================================
+    let packetCount = 0;
+    function simulateCtsSerialStream() {
+      packetCount++;
+      if (packetCount % 5 !== 0) return; // Output every 500ms to keep log readable
+
+      const log = document.getElementById('packetLog');
+      const now = new Date().toISOString().substring(11, 23);
+
+      // Channel 0x05: Shot Clock
+      const shotSec = Math.floor(shotTimeMs / 1000);
+      const shotHeader = (0x80 | (0x05 << 1)).toString(16).toUpperCase();
+      const shotPayload = shotSec >= 10 ? `   ${shotSec}   ` : `   ${shotSec}.${Math.floor((shotTimeMs%1000)/100)}  `;
+      const shotHex = Array.from(shotPayload).map(c => c.charCodeAt(0).toString(16).toUpperCase()).join(' ');
+
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML = `
+        <span class="log-time">${now}</span>
+        <span class="log-chan">CH 0x05 [SHOT CLK]</span>
+        <span class="log-hex">0x${shotHeader} ${shotHex}</span>
+        <span class="log-ascii">"${shotPayload}"</span>
+      `;
+      log.appendChild(line);
+
+      while (log.children.length > 20) {
+        log.removeChild(log.firstChild);
+      }
+      log.scrollTop = log.scrollHeight;
+    }
+  </script>
+</body>
+</html>
