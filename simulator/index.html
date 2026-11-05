@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PoloPad Pro - Deep Aquatics Instrument & Protocol Simulator</title>
+  <title>PoloPad Pro - Dual-Thumb Handheld Ergonomics Simulator</title>
   <style>
     :root {
       --chassis-bg: #0b0e15;
@@ -38,7 +38,7 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      gap: 22px;
+      gap: 20px;
       -webkit-font-smoothing: antialiased;
     }
 
@@ -46,19 +46,19 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 16px;
+      padding-bottom: 14px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
     .brand { display: flex; align-items: center; gap: 12px; }
     .brand-icon {
-      width: 42px; height: 42px; border-radius: 12px;
+      width: 40px; height: 40px; border-radius: 12px;
       background: linear-gradient(180deg, #2563eb, #1e40af);
-      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4), inset 0 1px 0 rgba(255,255,255,0.4);
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.4);
       display: flex; align-items: center; justify-content: center;
-      font-size: 24px;
+      font-size: 22px;
     }
-    .brand-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-    .brand-sub { font-size: 12px; color: #94a3b8; font-weight: 600; }
+    .brand-title { font-size: 20px; font-weight: 800; }
+    .brand-sub { font-size: 11px; color: #94a3b8; font-weight: 600; }
 
     .protocol-switcher {
       display: flex;
@@ -77,340 +77,293 @@
       padding: 6px 14px;
       border-radius: 16px;
       cursor: pointer;
-      transition: all 0.15s;
     }
     .proto-btn.active {
       background: #2563eb;
       color: #fff;
-      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.5);
     }
 
     .main-grid {
       display: grid;
-      grid-template-columns: 1.25fr 0.75fr;
-      gap: 24px;
+      grid-template-columns: 1.35fr 0.65fr;
+      gap: 22px;
       align-items: start;
     }
-    @media (max-width: 1100px) {
+    @media (max-width: 1150px) {
       .main-grid { grid-template-columns: 1fr; }
     }
 
-    /* MACHINED CONSOLE DECK */
-    .machined-deck {
+    /* ================================================= */
+    /* DUAL-THUMB HANDHELD IPAD CHASSIS                  */
+    /* ================================================= */
+    .handheld-chassis {
       background: linear-gradient(180deg, #131722 0%, #080a0f 100%);
       border: 2px solid #232838;
       border-radius: 30px;
-      padding: 26px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 16px;
       box-shadow: 0 24px 60px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.18);
-      position: relative;
     }
 
-    .recessed-bay {
-      background: radial-gradient(circle at 50% 20%, #0d1019 0%, #030406 100%);
-      border: 2px solid #1c2233;
-      border-radius: 22px;
-      padding: 16px 22px;
-      box-shadow: inset 0 8px 20px rgba(0,0,0,0.95), 0 1px 0 rgba(255,255,255,0.14);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .period-rack {
-      display: flex;
-      gap: 6px;
-      background: #05070c;
-      padding: 4px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,0.08);
-      box-shadow: inset 0 3px 8px rgba(0,0,0,0.8);
-    }
-    .period-key {
-      background: linear-gradient(180deg, #232938 0%, #141822 100%);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: #94a3b8;
-      font-size: 13px;
-      font-weight: 800;
-      padding: 8px 16px;
-      border-radius: 10px;
-      cursor: pointer;
-      box-shadow: 0 3px 0 #07090e, 0 5px 10px rgba(0,0,0,0.5);
-      transition: all 0.08s ease;
-    }
-    .period-key:active { transform: translateY(2px); box-shadow: 0 1px 0 #07090e; }
-    .period-key.active {
-      background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
-      color: #fff;
-      box-shadow: 0 3px 0 #1e3a8a, 0 5px 12px rgba(59, 130, 246, 0.4);
-    }
-
-    .hero-clocks-bar {
+    .thumb-layout-row {
       display: grid;
-      grid-template-columns: 1.35fr 1fr;
+      grid-template-columns: 165px 1fr 165px;
       gap: 18px;
-    }
-    .caption-tag {
-      font-size: 10px; font-weight: 900; letter-spacing: 1.8px;
-      text-transform: uppercase; color: #64748b; margin-bottom: 4px;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .clock-digits {
-      font-size: 60px; font-weight: 900;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
-      font-variant-numeric: tabular-nums;
-      color: #fff; text-shadow: 0 0 16px rgba(255,255,255,0.25);
-    }
-    .shot-digits {
-      font-size: 74px; font-weight: 900;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
-      font-variant-numeric: tabular-nums;
-      color: var(--led-amber);
-      text-shadow: 0 0 22px rgba(255, 183, 3, 0.45);
-      transition: all 0.2s;
-    }
-    .shot-digits.blanked {
-      color: #334155;
-      text-shadow: none;
-    }
-    .shot-digits.danger {
-      color: var(--led-red);
-      text-shadow: 0 0 26px rgba(255, 51, 51, 0.7);
+      align-items: stretch;
+      min-height: 480px;
     }
 
-    /* ================================================= */
-    /* GIANT HERO MASTER START / STOP BUTTON             */
-    /* ================================================= */
-    .giant-master-plunger {
+    /* LEFT THUMB PILLAR */
+    .thumb-pillar {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .pillar-tag {
+      font-size: 10px; font-weight: 900; letter-spacing: 1.5px;
+      color: #64748b; text-align: center; text-transform: uppercase;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+
+    .left-thumb-plunger {
       position: relative;
       top: 0;
+      flex: 1;
       width: 100%;
-      height: 98px;
       border: none;
-      border-radius: 24px;
+      border-radius: 26px;
       cursor: pointer;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: space-between;
-      padding: 0 32px;
+      padding: 24px 12px;
       color: #fff;
       transition: all 0.08s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .giant-master-plunger.start {
+    .left-thumb-plunger.start {
       background: linear-gradient(180deg, var(--green-surf) 0%, var(--green-dark) 100%);
       box-shadow: 
         0 10px 0 var(--green-shadow),
         0 18px 30px rgba(0,0,0,0.6),
         inset 0 2px 0 rgba(255,255,255,0.5);
     }
-    .giant-master-plunger.start:active {
+    .left-thumb-plunger.start:active {
       top: 8px;
       box-shadow: 0 2px 0 var(--green-shadow), 0 6px 12px rgba(0,0,0,0.5);
     }
-    .giant-master-plunger.stop {
+    .left-thumb-plunger.stop {
       background: linear-gradient(180deg, var(--red-surf) 0%, var(--red-dark) 100%);
       box-shadow: 
         0 10px 0 var(--red-shadow),
         0 18px 30px rgba(0,0,0,0.6),
         inset 0 2px 0 rgba(255,255,255,0.5);
     }
-    .giant-master-plunger.stop:active {
+    .left-thumb-plunger.stop:active {
       top: 8px;
       box-shadow: 0 2px 0 var(--red-shadow), 0 6px 12px rgba(0,0,0,0.5);
     }
 
-    .master-label-group {
-      display: flex;
-      align-items: center;
-      gap: 20px;
+    .grip-ridges {
+      display: flex; flex-direction: column; gap: 4px; width: 36px;
     }
-    .master-icon {
-      font-size: 40px;
-      font-weight: 900;
-    }
-    .master-title {
-      font-size: 32px;
-      font-weight: 900;
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
-      letter-spacing: 1px;
-      line-height: 1;
-    }
-    .master-sub {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      opacity: 0.85;
-      margin-top: 4px;
-      font-family: monospace;
-    }
-    .master-status-pill {
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid rgba(255,255,255,0.15);
-      padding: 6px 16px;
-      border-radius: 30px;
-      font-size: 13px;
-      font-weight: 900;
-      font-family: monospace;
-      letter-spacing: 1px;
+    .ridge-bar {
+      height: 3px; border-radius: 3px; background: rgba(255,255,255,0.35);
     }
 
-    /* TWIN ACTUATORS */
-    .actuators-rack {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+    .thumb-label-main {
+      font-size: 32px; font-weight: 900;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
+      letter-spacing: 1.5px; line-height: 1;
     }
-    .heavy-actuator {
-      position: relative; top: 0; height: 118px; border: none; border-radius: 24px;
-      cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      color: #fff; transition: all 0.08s;
+    .thumb-sub-pill {
+      font-size: 11px; font-weight: 900; font-family: monospace;
+      padding: 4px 10px; border-radius: 20px; background: rgba(0,0,0,0.35);
     }
-    .actuator-num {
-      font-size: 58px; font-weight: 900; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
-      line-height: 1; letter-spacing: -1.5px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+
+    /* RIGHT THUMB PILLAR */
+    .right-thumb-actuator {
+      position: relative;
+      top: 0;
+      flex: 1;
+      width: 100%;
+      border: none;
+      border-radius: 24px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      transition: all 0.08s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .actuator-label {
-      font-size: 13px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 4px;
-    }
-    .actuator-30 {
+    .r-act-30 {
       background: linear-gradient(180deg, var(--green-surf) 0%, var(--green-dark) 100%);
-      box-shadow: 0 10px 0 var(--green-shadow), 0 18px 32px rgba(0,0,0,0.7), inset 0 2px 0 rgba(255,255,255,0.5);
+      box-shadow: 0 10px 0 var(--green-shadow), 0 16px 28px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.5);
     }
-    .actuator-30:active { top: 8px; box-shadow: 0 2px 0 var(--green-shadow); }
-    .actuator-20 {
+    .r-act-30:active { top: 8px; box-shadow: 0 2px 0 var(--green-shadow); }
+    .r-act-20 {
       background: linear-gradient(180deg, var(--orange-surf) 0%, var(--orange-dark) 100%);
-      box-shadow: 0 10px 0 var(--orange-shadow), 0 18px 32px rgba(0,0,0,0.7), inset 0 2px 0 rgba(255,255,255,0.5);
+      box-shadow: 0 10px 0 var(--orange-shadow), 0 16px 28px rgba(0,0,0,0.6), inset 0 2px 0 rgba(255,255,255,0.5);
     }
-    .actuator-20:active { top: 8px; box-shadow: 0 2px 0 var(--orange-shadow); }
+    .r-act-20:active { top: 8px; box-shadow: 0 2px 0 var(--orange-shadow); }
+
+    /* CENTER STAGE */
+    .center-stage {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .recessed-bay {
+      background: radial-gradient(circle at 50% 20%, #0d1019 0%, #030406 100%);
+      border: 2px solid #1c2233;
+      border-radius: 20px;
+      padding: 14px 18px;
+      box-shadow: inset 0 6px 18px rgba(0,0,0,0.95), 0 1px 0 rgba(255,255,255,0.12);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .period-rack {
+      display: flex; gap: 4px; background: #05070c; padding: 3px; border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .period-key {
+      background: linear-gradient(180deg, #232938 0%, #141822 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #94a3b8; font-size: 12px; font-weight: 800;
+      padding: 6px 12px; border-radius: 8px; cursor: pointer;
+    }
+    .period-key.active {
+      background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+      color: #fff; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+    }
+
+    .center-clocks-bar {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 14px;
+    }
+    .clock-digits {
+      font-size: 52px; font-weight: 900;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
+      font-variant-numeric: tabular-nums;
+      color: #fff; text-shadow: 0 0 16px rgba(255,255,255,0.25);
+    }
+    .shot-digits {
+      font-size: 64px; font-weight: 900;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
+      font-variant-numeric: tabular-nums;
+      color: var(--led-amber);
+      text-shadow: 0 0 22px rgba(255, 183, 3, 0.45);
+    }
+    .shot-digits.blanked { color: #334155; text-shadow: none; }
+    .shot-digits.danger { color: var(--led-red); text-shadow: 0 0 24px rgba(255, 51, 51, 0.7); }
 
     .dock-row {
-      display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.3fr; gap: 14px;
+      display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.2fr; gap: 10px;
     }
     .dock-key {
-      position: relative; top: 0; height: 48px; border: none; border-radius: 14px;
+      height: 42px; border: none; border-radius: 12px;
       font-size: 13px; font-weight: 800; color: #fff; cursor: pointer;
       display: flex; align-items: center; justify-content: center; gap: 6px;
-      transition: all 0.08s ease;
     }
     .dock-undo {
       background: linear-gradient(180deg, var(--purple-surf) 0%, var(--purple-dark) 100%);
-      box-shadow: 0 6px 0 var(--purple-shadow), inset 0 1.5px 0 rgba(255,255,255,0.4);
+      box-shadow: 0 4px 0 var(--purple-shadow);
     }
-    .dock-undo:active { top: 4px; box-shadow: 0 2px 0 var(--purple-shadow); }
     .dock-adjust {
       background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
-      box-shadow: 0 6px 0 #0f172a, inset 0 1.5px 0 rgba(255,255,255,0.2);
+      box-shadow: 0 4px 0 #0f172a;
     }
-    .dock-adjust:active { top: 4px; box-shadow: 0 2px 0 #0f172a; }
     .dock-horn {
       background: linear-gradient(180deg, var(--red-surf) 0%, var(--red-dark) 100%);
-      font-weight: 900;
-      box-shadow: 0 6px 0 var(--red-shadow), inset 0 1.5px 0 rgba(255,255,255,0.4);
+      box-shadow: 0 4px 0 var(--red-shadow);
     }
-    .dock-horn:active { top: 4px; box-shadow: 0 2px 0 var(--red-shadow); }
 
-    /* TEAMS & EXCLUSIONS */
-    .teams-rack { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .teams-rack { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .team-bay {
       background: radial-gradient(circle at 50% 10%, #0d111a 0%, #040509 100%);
-      border: 2px solid #1a2030; border-radius: 20px; padding: 16px 20px;
-      box-shadow: inset 0 6px 16px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.12);
-      display: flex; flex-direction: column; gap: 12px;
+      border: 2px solid #1a2030; border-radius: 16px; padding: 12px 16px;
+      display: flex; flex-direction: column; gap: 8px;
     }
     .team-header-line { display: flex; justify-content: space-between; align-items: center; }
-    .team-tag { font-size: 15px; font-weight: 900; display: flex; align-items: center; gap: 8px; }
-    .score-control { display: flex; align-items: center; gap: 8px; }
+    .team-tag { font-size: 14px; font-weight: 900; display: flex; align-items: center; gap: 6px; }
+    .score-control { display: flex; align-items: center; gap: 6px; }
     .step-knob {
-      width: 36px; height: 36px; border-radius: 10px; border: none;
-      background: linear-gradient(180deg, #334155, #1e293b); color: #fff;
-      font-size: 20px; font-weight: 900; cursor: pointer;
-      box-shadow: 0 4px 0 #0f172a, inset 0 1px 0 rgba(255,255,255,0.3);
-      transition: all 0.08s;
+      width: 30px; height: 30px; border-radius: 8px; border: none;
+      background: #1e293b; color: #fff; font-size: 18px; font-weight: 900; cursor: pointer;
     }
-    .step-knob:active { transform: translateY(3px); box-shadow: 0 1px 0 #0f172a; }
     .score-readout {
-      font-size: 34px; font-weight: 900; min-width: 40px; text-align: center;
+      font-size: 30px; font-weight: 900; min-width: 32px; text-align: center;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
-      font-variant-numeric: tabular-nums;
     }
 
-    .exclusion-shelf { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; }
+    .exclusion-shelf { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 6px; }
     .shelf-title {
-      font-size: 11px; font-weight: 800; color: #64748b; letter-spacing: 1px; text-transform: uppercase;
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+      font-size: 10px; font-weight: 800; color: #64748b; letter-spacing: 0.8px; text-transform: uppercase;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;
     }
     .btn-add-cap {
       background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5);
-      color: #ef4444; font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 8px; cursor: pointer;
+      color: #ef4444; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; cursor: pointer;
     }
-    .chips-tray { display: flex; gap: 8px; flex-wrap: wrap; min-height: 30px; align-items: center; }
+    .chips-tray { display: flex; gap: 6px; flex-wrap: wrap; min-height: 24px; }
     .cap-badge-3d {
-      background: linear-gradient(180deg, #991b1b, #7f1d1d);
-      border: 1px solid rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 10px;
-      font-size: 12px; font-weight: 800; box-shadow: 0 3px 0 #450a0a;
-      display: flex; align-items: center; gap: 8px;
-    }
-    .cap-badge-3d.cleared {
-      background: linear-gradient(180deg, #059669, #047857); box-shadow: 0 3px 0 #064e3b;
+      background: #7f1d1d; border: 1px solid rgba(255,255,255,0.2); padding: 3px 8px; border-radius: 8px;
+      font-size: 11px; font-weight: 800; display: flex; align-items: center; gap: 6px;
     }
     .btn-release-early {
       background: rgba(255,255,255,0.2); border: none; color: #fff;
-      font-size: 10px; font-weight: 900; padding: 2px 6px; border-radius: 4px; cursor: pointer;
+      font-size: 9px; font-weight: 900; padding: 1px 4px; border-radius: 4px; cursor: pointer;
     }
 
-    /* HARDWARE DECK RACK */
+    /* RIGHT HARDWARE RACK & STREAM */
     .hardware-enclosure {
-      background: #000; border: 3px solid #1e2436; border-radius: 26px; padding: 22px;
-      display: flex; flex-direction: column; gap: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.9);
-      position: relative;
-    }
-    .rack-stamp {
-      position: absolute; top: -12px; left: 24px; background: #1e2436; color: #94a3b8;
-      font-size: 10px; font-weight: 900; letter-spacing: 1.5px; padding: 2px 10px; border-radius: 6px;
-      text-transform: uppercase;
+      background: #000; border: 3px solid #1e2436; border-radius: 24px; padding: 18px;
+      display: flex; flex-direction: column; gap: 14px;
     }
     .led-glass {
-      background: #020305; border: 2px solid #131724; border-radius: 18px; padding: 16px;
+      background: #020305; border: 2px solid #131724; border-radius: 16px; padding: 14px;
       display: flex; justify-content: space-around; align-items: center;
-      box-shadow: inset 0 8px 24px rgba(0,0,0,0.95);
     }
     .seven-seg {
-      font-family: "Courier New", Courier, monospace; font-weight: 900; letter-spacing: 4px;
-      padding: 8px 16px; border-radius: 8px; background: #000; border: 1px solid #141724;
-      text-shadow: 0 0 16px currentColor;
+      font-family: "Courier New", Courier, monospace; font-weight: 900; letter-spacing: 3px;
+      padding: 6px 12px; border-radius: 6px; background: #000; border: 1px solid #141724;
+      text-shadow: 0 0 14px currentColor;
     }
-    .led-shot { font-size: 74px; color: var(--led-amber); min-width: 140px; text-align: center; }
+    .led-shot { font-size: 68px; color: var(--led-amber); min-width: 120px; text-align: center; }
     .led-shot.blank { color: #1e2433; text-shadow: none; }
     .led-shot.horn-active { color: var(--led-red); animation: stroboflash 0.25s infinite alternate; }
-    .led-game { font-size: 50px; color: #38bdf8; min-width: 190px; text-align: center; }
+    .led-game { font-size: 46px; color: #38bdf8; min-width: 170px; text-align: center; }
     @keyframes stroboflash { from { opacity: 1; } to { opacity: 0.2; } }
 
-    /* BROADCAST SCOREBUG */
     .broadcast-card {
-      background: linear-gradient(180deg, #101420 0%, #07090f 100%);
-      border: 1px solid #1e2840; border-radius: 20px; padding: 16px;
-      display: flex; flex-direction: column; gap: 10px;
+      background: #0d111a; border: 1px solid #1e2840; border-radius: 18px; padding: 14px;
+      display: flex; flex-direction: column; gap: 8px;
     }
     .scorebug-preview {
-      background: #000; border-radius: 10px; padding: 8px 16px;
+      background: #000; border-radius: 8px; padding: 6px 14px;
       display: flex; align-items: center; justify-content: space-between;
-      border: 1px solid #222d4a; box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+      border: 1px solid #222d4a;
     }
-    .scorebug-team { display: flex; align-items: center; gap: 8px; font-weight: 900; font-size: 14px; }
     .scorebug-clock {
-      background: #111827; padding: 4px 10px; border-radius: 6px;
-      font-family: monospace; font-weight: 900; font-size: 15px; color: #38bdf8;
+      background: #111827; padding: 3px 8px; border-radius: 4px;
+      font-family: monospace; font-weight: 900; font-size: 14px; color: #38bdf8;
     }
 
     .bus-monitor {
-      background: #040508; border: 1px solid #1a2033; border-radius: 20px; padding: 16px;
-      display: flex; flex-direction: column; gap: 10px;
+      background: #040508; border: 1px solid #1a2033; border-radius: 18px; padding: 14px;
+      display: flex; flex-direction: column; gap: 8px;
     }
     .bus-log {
       font-family: "SF Mono", Monaco, Consolas, monospace; font-size: 11px;
-      background: #000; border: 1px solid #101420; border-radius: 12px; padding: 12px;
-      height: 160px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+      background: #000; border: 1px solid #101420; border-radius: 10px; padding: 10px;
+      height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
     }
     .b-line { display: flex; gap: 10px; color: #cbd5e1; }
   </style>
@@ -422,7 +375,7 @@
       <div class="brand-icon">🤽</div>
       <div>
         <div class="brand-title">PoloPad Pro</div>
-        <div class="brand-sub">Multi-Protocol Timing Architecture &bull; World Aquatics & NCAA Certified</div>
+        <div class="brand-sub">Dual-Thumb Handheld Ergonomics &bull; Left Start/Stop + Right Resets</div>
       </div>
     </div>
     
@@ -434,182 +387,220 @@
 
   <div class="main-grid">
 
-    <!-- MACHINED CONSOLE DECK -->
-    <div class="machined-deck">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <div class="period-rack">
-          <button class="period-key active" onclick="setPeriod(1)">Q1</button>
-          <button class="period-key" onclick="setPeriod(2)">Q2</button>
-          <button class="period-key" onclick="setPeriod(3)">Q3</button>
-          <button class="period-key" onclick="setPeriod(4)">Q4</button>
-          <button class="period-key" onclick="setPeriod(5)">OT</button>
-        </div>
+    <!-- HANDHELD IPAD CONSOLE WITH DUAL THUMB GRIPS -->
+    <div class="handheld-chassis">
 
-        <div id="blankNotice" style="font-size: 11px; font-weight: 900; color: #64748b; letter-spacing: 1px;">
-          RULE WP 20.15 ACTIVE
-        </div>
-      </div>
+      <div class="thumb-layout-row">
 
-      <!-- HERO CLOCKS -->
-      <div class="hero-clocks-bar">
-        <div class="recessed-bay">
-          <div>
-            <div class="caption-tag">⏱️ MASTER GAME CLOCK</div>
-            <div class="clock-digits" id="appGameClock">08:00.0</div>
+        <!-- ============================================== -->
+        <!-- 1. LEFT THUMB PILLAR: GIANT START / STOP       -->
+        <!-- ============================================== -->
+        <div class="thumb-pillar">
+          <div class="pillar-tag">
+            <span>👈</span> LEFT THUMB
           </div>
-        </div>
 
-        <div class="recessed-bay" style="flex-direction:column; align-items:flex-end;">
-          <div class="caption-tag">⚡ SHOT CLOCK</div>
-          <div class="shot-digits" id="appShotClock">30</div>
-        </div>
-      </div>
-
-      <!-- GIANT MASTER START / STOP PLUNGER (MUCH BIGGER) -->
-      <button class="giant-master-plunger start" id="btnRun" onclick="toggleStartStop()">
-        <div class="master-label-group">
-          <span class="master-icon" id="masterIcon">▶</span>
-          <div>
-            <div class="master-title" id="masterTitle">START CLOCKS</div>
-            <div class="master-sub" id="masterSub">PRESS WHEN BALL IS PUT IN PLAY</div>
-          </div>
-        </div>
-        <div class="master-status-pill" id="masterPill">STOPPED</div>
-      </button>
-
-      <!-- TWIN 3D ACTUATORS -->
-      <div class="actuators-rack">
-        <button class="heavy-actuator actuator-30" onclick="reset30()">
-          <div class="actuator-num">30</div>
-          <div class="actuator-label">↺ FULL TURNOVER</div>
-        </button>
-
-        <button class="heavy-actuator actuator-20" onclick="reset20()">
-          <div class="actuator-num">20</div>
-          <div class="actuator-label">⚠️ REBOUND / EJECTION</div>
-        </button>
-      </div>
-
-      <!-- 3D UTILITY DOCK -->
-      <div class="dock-row">
-        <button class="dock-key dock-undo" onclick="undoReset()">↺ UNDO RESET</button>
-        <button class="dock-key dock-adjust" onclick="adjustShot(-1)">-1s Shot</button>
-        <button class="dock-key dock-adjust" onclick="adjustShot(1)">+1s Shot</button>
-        <button class="dock-key dock-horn" onmousedown="fireHorn(1200)">🔊 HORN</button>
-      </div>
-
-      <!-- TEAMS -->
-      <div class="teams-rack">
-        <!-- WHITE TEAM -->
-        <div class="team-bay">
-          <div class="team-header-line">
-            <div class="team-tag">
-              <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#fff; box-shadow:0 0 8px #fff;"></span>
-              <span>WHITE TEAM</span>
+          <button class="left-thumb-plunger start" id="btnLeftStartStop" onclick="toggleStartStop()">
+            <div class="grip-ridges">
+              <div class="ridge-bar"></div>
+              <div class="ridge-bar"></div>
+              <div class="ridge-bar"></div>
             </div>
-            <div class="score-control">
-              <button class="step-knob" onclick="adjustScore('white', -1)">&minus;</button>
-              <span class="score-readout" id="scoreWhite">0</span>
-              <button class="step-knob" onclick="adjustScore('white', 1)">&plus;</button>
+
+            <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+              <div style="font-size: 52px; line-height:1;" id="leftThumbIcon">▶</div>
+              <div class="thumb-label-main" id="leftThumbLabel">START</div>
+              <div class="thumb-sub-pill" id="leftThumbSub">IN PLAY</div>
+            </div>
+
+            <div class="grip-ridges">
+              <div class="ridge-bar"></div>
+              <div class="ridge-bar"></div>
+              <div class="ridge-bar"></div>
+            </div>
+          </button>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- 2. CENTER STAGE: CLOCKS & MATCH COMMAND        -->
+        <!-- ============================================== -->
+        <div class="center-stage">
+          
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div class="period-rack">
+              <button class="period-key active" onclick="setPeriod(1)">Q1</button>
+              <button class="period-key" onclick="setPeriod(2)">Q2</button>
+              <button class="period-key" onclick="setPeriod(3)">Q3</button>
+              <button class="period-key" onclick="setPeriod(4)">Q4</button>
+              <button class="period-key" onclick="setPeriod(5)">OT</button>
+            </div>
+            <div id="blankNotice" style="font-size: 11px; font-weight: 900; color: #64748b; letter-spacing: 0.8px;">
+              RULE WP 20.15 ARMED
             </div>
           </div>
 
-          <div class="exclusion-shelf">
-            <div class="shelf-title">
-              <span>20s MAJOR FOULS</span>
-              <button class="btn-add-cap" onclick="promptExclusion('white')">+ EJECT CAP</button>
+          <!-- HERO CLOCKS -->
+          <div class="center-clocks-bar">
+            <div class="recessed-bay">
+              <div>
+                <div style="font-size: 10px; font-weight:900; letter-spacing:1.5px; color:#64748b; margin-bottom:2px;">MASTER GAME CLOCK</div>
+                <div class="clock-digits" id="appGameClock">08:00.0</div>
+              </div>
             </div>
-            <div class="chips-tray" id="whiteExclusions"></div>
-          </div>
-        </div>
 
-        <!-- DARK TEAM -->
-        <div class="team-bay">
-          <div class="team-header-line">
-            <div class="team-tag" style="color: #60a5fa;">
-              <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:#60a5fa; box-shadow:0 0 8px #60a5fa;"></span>
-              <span>DARK TEAM</span>
-            </div>
-            <div class="score-control">
-              <button class="step-knob" onclick="adjustScore('dark', -1)">&minus;</button>
-              <span class="score-readout" id="scoreDark">0</span>
-              <button class="step-knob" onclick="adjustScore('dark', 1)">&plus;</button>
+            <div class="recessed-bay" style="flex-direction:column; align-items:flex-end;">
+              <div style="font-size: 10px; font-weight:900; letter-spacing:1.5px; color:#64748b; margin-bottom:2px;">SHOT CLOCK</div>
+              <div class="shot-digits" id="appShotClock">30</div>
             </div>
           </div>
 
-          <div class="exclusion-shelf">
-            <div class="shelf-title">
-              <span>20s MAJOR FOULS</span>
-              <button class="btn-add-cap" onclick="promptExclusion('dark')">+ EJECT CAP</button>
-            </div>
-            <div class="chips-tray" id="darkExclusions"></div>
+          <!-- UTILITY DOCK -->
+          <div class="dock-row">
+            <button class="dock-key dock-undo" onclick="undoReset()">↺ UNDO RESET</button>
+            <button class="dock-key dock-adjust" onclick="adjustShot(-1)">-1s</button>
+            <button class="dock-key dock-adjust" onclick="adjustShot(1)">+1s</button>
+            <button class="dock-key dock-horn" onmousedown="fireHorn(1200)">🔊 HORN</button>
           </div>
+
+          <!-- TEAMS & EXCLUSIONS -->
+          <div class="teams-rack">
+            <!-- WHITE -->
+            <div class="team-bay">
+              <div class="team-header-line">
+                <div class="team-tag">
+                  <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#fff;"></span>
+                  <span>WHITE</span>
+                </div>
+                <div class="score-control">
+                  <button class="step-knob" onclick="adjustScore('white', -1)">&minus;</button>
+                  <span class="score-readout" id="scoreWhite">0</span>
+                  <button class="step-knob" onclick="adjustScore('white', 1)">&plus;</button>
+                </div>
+              </div>
+              <div class="exclusion-shelf">
+                <div class="shelf-title">
+                  <span>20s EXCLUSIONS</span>
+                  <button class="btn-add-cap" onclick="promptExclusion('white')">+ EJECT</button>
+                </div>
+                <div class="chips-tray" id="whiteExclusions"></div>
+              </div>
+            </div>
+
+            <!-- DARK -->
+            <div class="team-bay">
+              <div class="team-header-line">
+                <div class="team-tag" style="color: #60a5fa;">
+                  <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#60a5fa;"></span>
+                  <span>DARK</span>
+                </div>
+                <div class="score-control">
+                  <button class="step-knob" onclick="adjustScore('dark', -1)">&minus;</button>
+                  <span class="score-readout" id="scoreDark">0</span>
+                  <button class="step-knob" onclick="adjustScore('dark', 1)">&plus;</button>
+                </div>
+              </div>
+              <div class="exclusion-shelf">
+                <div class="shelf-title">
+                  <span>20s EXCLUSIONS</span>
+                  <button class="btn-add-cap" onclick="promptExclusion('dark')">+ EJECT</button>
+                </div>
+                <div class="chips-tray" id="darkExclusions"></div>
+              </div>
+            </div>
+          </div>
+
         </div>
+
+        <!-- ============================================== -->
+        <!-- 3. RIGHT THUMB PILLAR: STACKED RESETS          -->
+        <!-- ============================================== -->
+        <div class="thumb-pillar">
+          <div class="pillar-tag">
+            RIGHT THUMB <span>👉</span>
+          </div>
+
+          <!-- RESET 30s -->
+          <button class="right-thumb-actuator r-act-30" onclick="reset30()">
+            <div style="font-size: 52px; font-weight: 900; line-height: 1; font-family: monospace;">30</div>
+            <div style="font-size: 14px; font-weight: 900; letter-spacing: 1px; margin-top: 4px;">RESET 30</div>
+            <div style="font-size: 10px; font-weight: 800; opacity: 0.8; font-family: monospace;">TURNOVER</div>
+          </button>
+
+          <!-- RESET 20s -->
+          <button class="right-thumb-actuator r-act-20" onclick="reset20()">
+            <div style="font-size: 52px; font-weight: 900; line-height: 1; font-family: monospace;">20</div>
+            <div style="font-size: 14px; font-weight: 900; letter-spacing: 1px; margin-top: 4px;">RESET 20</div>
+            <div style="font-size: 10px; font-weight: 800; opacity: 0.8; font-family: monospace;">REBOUND/FOUL</div>
+          </button>
+        </div>
+
       </div>
 
     </div>
 
-    <!-- RIGHT: PHYSICAL RACK & BROADCAST PREVIEW -->
-    <div style="display: flex; flex-direction: column; gap: 20px;">
+    <!-- RIGHT: PHYSICAL RACK & STREAM OVERLAY -->
+    <div style="display: flex; flex-direction: column; gap: 18px;">
 
       <!-- PHYSICAL CTS / DAKTRONICS DECK HARDWARE -->
       <div class="hardware-enclosure">
-        <div class="rack-stamp" id="rackProtocolTitle">CTS AQUATICS &bull; PHYSICAL SCOREBOARD RACK</div>
+        <div style="font-size: 10px; font-weight:900; letter-spacing:1.5px; color:#64748b;" id="rackProtocolTitle">
+          CTS AQUATICS &bull; PHYSICAL SCOREBOARD RACK
+        </div>
 
         <div class="led-glass">
           <div style="text-align: center;">
-            <div style="font-size: 11px; font-weight:900; color:#475569; margin-bottom: 6px;">SHOT CLOCK (WP 20.15 BLANKING)</div>
+            <div style="font-size: 10px; font-weight:900; color:#475569; margin-bottom: 4px;">SHOT CLOCK (WP 20.15)</div>
             <div class="seven-seg led-shot" id="ctsShotClock">30</div>
           </div>
 
           <div style="text-align: center;">
-            <div style="font-size: 11px; font-weight:900; color:#475569; margin-bottom: 6px;">GAME TIME</div>
+            <div style="font-size: 10px; font-weight:900; color:#475569; margin-bottom: 4px;">GAME TIME</div>
             <div class="seven-seg led-game" id="ctsGameClock">08:00</div>
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 10px;">
-          <div style="display:flex; gap: 16px; font-size: 14px; font-weight: 800; color: #94a3b8;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 6px;">
+          <div style="display:flex; gap: 14px; font-size: 13px; font-weight: 800; color: #94a3b8;">
             <span>W: <strong id="ctsScoreWhite" style="color:#fff;">0</strong></span>
             <span>PERIOD: <strong id="ctsPeriod" style="color:var(--led-amber);">1</strong></span>
             <span>D: <strong id="ctsScoreDark" style="color:#60a5fa;">0</strong></span>
           </div>
 
-          <div style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:900; color:#64748b;">
-            <div id="hornBulb" style="width:14px; height:14px; border-radius:50%; background:#1e293b;"></div>
-            <span>ELECTRIC HORN</span>
+          <div style="display:flex; align-items:center; gap:6px; font-size:11px; font-weight:900; color:#64748b;">
+            <div id="hornBulb" style="width:12px; height:12px; border-radius:50%; background:#1e293b;"></div>
+            <span>HORN</span>
           </div>
         </div>
       </div>
 
-      <!-- BROADCAST LIVE STREAM HUD BUG (OBS / NDI OVERLAY) -->
+      <!-- OBS SCOREBUG -->
       <div class="broadcast-card">
         <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size: 11px; font-weight: 900; color: #38bdf8; letter-spacing: 1px;">
-            🔴 LIVE STREAM SCOREBUG (OBS / HUDL OVERLAY)
+          <span style="font-size: 10px; font-weight: 900; color: #38bdf8; letter-spacing: 1px;">
+            🔴 LIVE STREAM SCOREBUG (OBS / HUDL)
           </span>
-          <span style="font-size: 10px; font-family: monospace; color: #64748b;">http://ipad:8080/overlay</span>
+          <span style="font-size: 9px; font-family: monospace; color: #64748b;">http://ipad:8080/overlay</span>
         </div>
         <div class="scorebug-preview">
-          <div class="scorebug-team">
-            <span style="color:#fff;">WHITE</span>
-            <span style="background:#222; padding:2px 8px; border-radius:4px;" id="obsWhite">0</span>
+          <div style="display:flex; align-items:center; gap:6px; font-weight:900; font-size:13px;">
+            <span style="color:#fff;">W</span>
+            <span style="background:#222; padding:2px 6px; border-radius:4px;" id="obsWhite">0</span>
           </div>
-          <div style="font-weight:900; color:#64748b; font-size:12px;" id="obsPeriod">Q1</div>
-          <div class="scorebug-team">
-            <span style="background:#222; padding:2px 8px; border-radius:4px;" id="obsDark">0</span>
-            <span style="color:#60a5fa;">DARK</span>
+          <div style="font-weight:900; color:#64748b; font-size:11px;" id="obsPeriod">Q1</div>
+          <div style="display:flex; align-items:center; gap:6px; font-weight:900; font-size:13px;">
+            <span style="background:#222; padding:2px 6px; border-radius:4px;" id="obsDark">0</span>
+            <span style="color:#60a5fa;">D</span>
           </div>
           <div class="scorebug-clock" id="obsGameClock">08:00</div>
-          <div style="font-weight:900; font-family:monospace; color:var(--led-amber); font-size:15px;" id="obsShotClock">:30</div>
+          <div style="font-weight:900; font-family:monospace; color:var(--led-amber); font-size:14px;" id="obsShotClock">:30</div>
         </div>
       </div>
 
-      <!-- SERIAL BUS STREAM MONITOR -->
+      <!-- BUS MONITOR -->
       <div class="bus-monitor">
-        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:#94a3b8;">
+        <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:800; color:#94a3b8;">
           <span id="busMonitorTitle">CTS RS-232 BUS (9600-8-E-1)</span>
-          <span style="color:var(--green-surf);">10Hz ISOLATED</span>
+          <span style="color:var(--green-surf);">10Hz LIVE</span>
         </div>
         <div class="bus-log" id="busLog"></div>
       </div>
@@ -818,13 +809,12 @@
 
       document.getElementById('appGameClock').textContent = timeStr;
       
-      // Update Giant Master Plunger
-      const runBtn = document.getElementById('btnRun');
-      runBtn.className = `giant-master-plunger ${isRunning ? 'stop' : 'start'}`;
-      document.getElementById('masterIcon').textContent = isRunning ? '⏸' : '▶';
-      document.getElementById('masterTitle').textContent = isRunning ? 'STOP CLOCKS' : 'START CLOCKS';
-      document.getElementById('masterSub').textContent = isRunning ? 'PRESS ON REFEREE WHISTLE / FOUL' : 'PRESS WHEN BALL IS PUT IN PLAY';
-      document.getElementById('masterPill').textContent = isRunning ? 'RUNNING' : 'STOPPED';
+      // Update Left Thumb Start/Stop Plunger
+      const leftBtn = document.getElementById('btnLeftStartStop');
+      leftBtn.className = `left-thumb-plunger ${isRunning ? 'stop' : 'start'}`;
+      document.getElementById('leftThumbIcon').textContent = isRunning ? '⏸' : '▶';
+      document.getElementById('leftThumbLabel').textContent = isRunning ? 'STOP' : 'START';
+      document.getElementById('leftThumbSub').textContent = isRunning ? 'WHISTLE' : 'IN PLAY';
 
       const isBlanked = gameTimeMs <= shotTimeMs;
       const shotSec = Math.floor(shotTimeMs / 1000);
@@ -838,7 +828,7 @@
         appShot.className = 'shot-digits blanked';
         ctsShot.textContent = "  ";
         ctsShot.className = 'seven-seg led-shot blank';
-        document.getElementById('blankNotice').textContent = "⚠️ WP 20.15 BLANKED (GAME < SHOT)";
+        document.getElementById('blankNotice').textContent = "⚠️ WP 20.15 BLANKED";
         document.getElementById('blankNotice').style.color = "#f59e0b";
       } else {
         const shotStr = shotSec >= 10 ? `${shotSec}` : `${shotSec}.${shotTenths}`;
@@ -876,7 +866,7 @@
         wrap.innerHTML = list.map(e => `
           <div class="cap-badge-3d ${e.remaining === 0 ? 'cleared' : ''}">
             <span>#${e.cap}: <strong>${e.remaining}s</strong></span>
-            <button class="btn-release-early" onclick="releaseEarly(${e.id})" title="Release on goal or turnover">RELEASE</button>
+            <button class="btn-release-early" onclick="releaseEarly(${e.id})">REL</button>
           </div>
         `).join('');
       });
