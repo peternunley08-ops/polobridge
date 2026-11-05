@@ -103,7 +103,7 @@
       padding: 26px;
       display: flex;
       flex-direction: column;
-      gap: 22px;
+      gap: 20px;
       box-shadow: 0 24px 60px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.18);
       position: relative;
     }
@@ -112,7 +112,7 @@
       background: radial-gradient(circle at 50% 20%, #0d1019 0%, #030406 100%);
       border: 2px solid #1c2233;
       border-radius: 22px;
-      padding: 18px 24px;
+      padding: 16px 22px;
       box-shadow: inset 0 8px 20px rgba(0,0,0,0.95), 0 1px 0 rgba(255,255,255,0.14);
       display: flex;
       justify-content: space-between;
@@ -149,7 +149,7 @@
 
     .hero-clocks-bar {
       display: grid;
-      grid-template-columns: 1.3fr 1fr;
+      grid-template-columns: 1.35fr 1fr;
       gap: 18px;
     }
     .caption-tag {
@@ -158,13 +158,13 @@
       display: flex; align-items: center; gap: 6px;
     }
     .clock-digits {
-      font-size: 58px; font-weight: 900;
+      font-size: 60px; font-weight: 900;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
       font-variant-numeric: tabular-nums;
       color: #fff; text-shadow: 0 0 16px rgba(255,255,255,0.25);
     }
     .shot-digits {
-      font-size: 72px; font-weight: 900;
+      font-size: 74px; font-weight: 900;
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
       font-variant-numeric: tabular-nums;
       color: var(--led-amber);
@@ -180,38 +180,98 @@
       text-shadow: 0 0 26px rgba(255, 51, 51, 0.7);
     }
 
-    .plunger-btn {
-      position: relative; top: 0;
-      border: none; border-radius: 18px; padding: 14px 28px;
-      font-size: 18px; font-weight: 900; letter-spacing: 1px; color: #fff;
-      cursor: pointer; display: flex; align-items: center; gap: 8px;
-      transition: all 0.08s;
+    /* ================================================= */
+    /* GIANT HERO MASTER START / STOP BUTTON             */
+    /* ================================================= */
+    .giant-master-plunger {
+      position: relative;
+      top: 0;
+      width: 100%;
+      height: 98px;
+      border: none;
+      border-radius: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+      color: #fff;
+      transition: all 0.08s cubic-bezier(0.16, 1, 0.3, 1);
     }
-    .plunger-btn.start {
+    .giant-master-plunger.start {
       background: linear-gradient(180deg, var(--green-surf) 0%, var(--green-dark) 100%);
-      box-shadow: 0 7px 0 var(--green-shadow), 0 12px 22px rgba(0,0,0,0.6), inset 0 1.5px 0 rgba(255,255,255,0.45);
+      box-shadow: 
+        0 10px 0 var(--green-shadow),
+        0 18px 30px rgba(0,0,0,0.6),
+        inset 0 2px 0 rgba(255,255,255,0.5);
     }
-    .plunger-btn.start:active { top: 5px; box-shadow: 0 2px 0 var(--green-shadow); }
-    .plunger-btn.stop {
+    .giant-master-plunger.start:active {
+      top: 8px;
+      box-shadow: 0 2px 0 var(--green-shadow), 0 6px 12px rgba(0,0,0,0.5);
+    }
+    .giant-master-plunger.stop {
       background: linear-gradient(180deg, var(--red-surf) 0%, var(--red-dark) 100%);
-      box-shadow: 0 7px 0 var(--red-shadow), 0 12px 22px rgba(0,0,0,0.6), inset 0 1.5px 0 rgba(255,255,255,0.45);
+      box-shadow: 
+        0 10px 0 var(--red-shadow),
+        0 18px 30px rgba(0,0,0,0.6),
+        inset 0 2px 0 rgba(255,255,255,0.5);
     }
-    .plunger-btn.stop:active { top: 5px; box-shadow: 0 2px 0 var(--red-shadow); }
+    .giant-master-plunger.stop:active {
+      top: 8px;
+      box-shadow: 0 2px 0 var(--red-shadow), 0 6px 12px rgba(0,0,0,0.5);
+    }
 
+    .master-label-group {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .master-icon {
+      font-size: 40px;
+      font-weight: 900;
+    }
+    .master-title {
+      font-size: 32px;
+      font-weight: 900;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
+      letter-spacing: 1px;
+      line-height: 1;
+    }
+    .master-sub {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      opacity: 0.85;
+      margin-top: 4px;
+      font-family: monospace;
+    }
+    .master-status-pill {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 6px 16px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 900;
+      font-family: monospace;
+      letter-spacing: 1px;
+    }
+
+    /* TWIN ACTUATORS */
     .actuators-rack {
       display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
     }
     .heavy-actuator {
-      position: relative; top: 0; height: 126px; border: none; border-radius: 24px;
+      position: relative; top: 0; height: 118px; border: none; border-radius: 24px;
       cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center;
       color: #fff; transition: all 0.08s;
     }
     .actuator-num {
-      font-size: 62px; font-weight: 900; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
+      font-size: 58px; font-weight: 900; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Rounded", monospace;
       line-height: 1; letter-spacing: -1.5px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
     }
     .actuator-label {
-      font-size: 14px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 4px;
+      font-size: 13px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase; margin-top: 4px;
     }
     .actuator-30 {
       background: linear-gradient(180deg, var(--green-surf) 0%, var(--green-dark) 100%);
@@ -228,25 +288,25 @@
       display: grid; grid-template-columns: 1.4fr 1fr 1fr 1.3fr; gap: 14px;
     }
     .dock-key {
-      position: relative; top: 0; height: 50px; border: none; border-radius: 14px;
-      font-size: 14px; font-weight: 800; color: #fff; cursor: pointer;
+      position: relative; top: 0; height: 48px; border: none; border-radius: 14px;
+      font-size: 13px; font-weight: 800; color: #fff; cursor: pointer;
       display: flex; align-items: center; justify-content: center; gap: 6px;
       transition: all 0.08s ease;
     }
     .dock-undo {
       background: linear-gradient(180deg, var(--purple-surf) 0%, var(--purple-dark) 100%);
-      box-shadow: 0 6px 0 var(--purple-shadow), 0 10px 18px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.4);
+      box-shadow: 0 6px 0 var(--purple-shadow), inset 0 1.5px 0 rgba(255,255,255,0.4);
     }
     .dock-undo:active { top: 4px; box-shadow: 0 2px 0 var(--purple-shadow); }
     .dock-adjust {
       background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
-      box-shadow: 0 6px 0 #0f172a, 0 10px 18px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.2);
+      box-shadow: 0 6px 0 #0f172a, inset 0 1.5px 0 rgba(255,255,255,0.2);
     }
     .dock-adjust:active { top: 4px; box-shadow: 0 2px 0 #0f172a; }
     .dock-horn {
       background: linear-gradient(180deg, var(--red-surf) 0%, var(--red-dark) 100%);
       font-weight: 900;
-      box-shadow: 0 6px 0 var(--red-shadow), 0 10px 18px rgba(0,0,0,0.5), inset 0 1.5px 0 rgba(255,255,255,0.4);
+      box-shadow: 0 6px 0 var(--red-shadow), inset 0 1.5px 0 rgba(255,255,255,0.4);
     }
     .dock-horn:active { top: 4px; box-shadow: 0 2px 0 var(--red-shadow); }
 
@@ -326,7 +386,7 @@
     .led-game { font-size: 50px; color: #38bdf8; min-width: 190px; text-align: center; }
     @keyframes stroboflash { from { opacity: 1; } to { opacity: 0.2; } }
 
-    /* BROADCAST SCOREBUG HUD PREVIEW (OBS OVERLAY) */
+    /* BROADCAST SCOREBUG */
     .broadcast-card {
       background: linear-gradient(180deg, #101420 0%, #07090f 100%);
       border: 1px solid #1e2840; border-radius: 20px; padding: 16px;
@@ -397,9 +457,6 @@
             <div class="caption-tag">⏱️ MASTER GAME CLOCK</div>
             <div class="clock-digits" id="appGameClock">08:00.0</div>
           </div>
-          <button class="plunger-btn start" id="btnRun" onclick="toggleStartStop()">
-            ▶ START
-          </button>
         </div>
 
         <div class="recessed-bay" style="flex-direction:column; align-items:flex-end;">
@@ -407,6 +464,18 @@
           <div class="shot-digits" id="appShotClock">30</div>
         </div>
       </div>
+
+      <!-- GIANT MASTER START / STOP PLUNGER (MUCH BIGGER) -->
+      <button class="giant-master-plunger start" id="btnRun" onclick="toggleStartStop()">
+        <div class="master-label-group">
+          <span class="master-icon" id="masterIcon">▶</span>
+          <div>
+            <div class="master-title" id="masterTitle">START CLOCKS</div>
+            <div class="master-sub" id="masterSub">PRESS WHEN BALL IS PUT IN PLAY</div>
+          </div>
+        </div>
+        <div class="master-status-pill" id="masterPill">STOPPED</div>
+      </button>
 
       <!-- TWIN 3D ACTUATORS -->
       <div class="actuators-rack">
@@ -587,7 +656,7 @@
       } catch (e) {}
     }
 
-    let currentProtocol = 'cts'; // 'cts' or 'daktronics'
+    let currentProtocol = 'cts';
     let isRunning = false;
     let gameTimeMs = 8 * 60 * 1000;
     let shotTimeMs = 30 * 1000;
@@ -680,7 +749,6 @@
       if (team === 'white') {
         scoreWhite = Math.max(0, scoreWhite + delta);
         if (delta > 0) {
-          // Rule WP 21: Goal scored releases defending team's ejections!
           exclusions = exclusions.filter(e => e.team !== 'dark');
           reset30();
         }
@@ -700,10 +768,9 @@
       const cap = prompt(`Enter Cap # for ${team.toUpperCase()} exclusion (1-20):`, "4");
       if (!cap) return;
       exclusions.push({ id: Date.now(), team, cap: parseInt(cap) || 1, remaining: 20 });
-      reset20(); // Rule WP 20.16: exclusion resets shot clock to 20
+      reset20();
     }
 
-    // Rule WP 21: Early release on defensive turnover
     function releaseEarly(id) {
       playMechanicalClick();
       exclusions = exclusions.filter(e => e.id !== id);
@@ -722,7 +789,6 @@
         if (shotTimeMs > 100) shotTimeMs -= 100;
         else {
           shotTimeMs = 0;
-          // Only fire shot clock horn if not blanked
           if (gameTimeMs > shotTimeMs) {
             fireHorn(1200);
           }
@@ -751,11 +817,15 @@
       const gameMinSec = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 
       document.getElementById('appGameClock').textContent = timeStr;
+      
+      // Update Giant Master Plunger
       const runBtn = document.getElementById('btnRun');
-      runBtn.textContent = isRunning ? '⏸ STOP' : '▶ START';
-      runBtn.className = `plunger-btn ${isRunning ? 'stop' : 'start'}`;
+      runBtn.className = `giant-master-plunger ${isRunning ? 'stop' : 'start'}`;
+      document.getElementById('masterIcon').textContent = isRunning ? '⏸' : '▶';
+      document.getElementById('masterTitle').textContent = isRunning ? 'STOP CLOCKS' : 'START CLOCKS';
+      document.getElementById('masterSub').textContent = isRunning ? 'PRESS ON REFEREE WHISTLE / FOUL' : 'PRESS WHEN BALL IS PUT IN PLAY';
+      document.getElementById('masterPill').textContent = isRunning ? 'RUNNING' : 'STOPPED';
 
-      // Rule WP 20.15: Shot Clock Blanking check
       const isBlanked = gameTimeMs <= shotTimeMs;
       const shotSec = Math.floor(shotTimeMs / 1000);
       const shotTenths = Math.floor((shotTimeMs % 1000) / 100);
@@ -766,7 +836,7 @@
       if (isBlanked) {
         appShot.textContent = "--";
         appShot.className = 'shot-digits blanked';
-        ctsShot.textContent = "  "; // Physically blank
+        ctsShot.textContent = "  ";
         ctsShot.className = 'seven-seg led-shot blank';
         document.getElementById('blankNotice').textContent = "⚠️ WP 20.15 BLANKED (GAME < SHOT)";
         document.getElementById('blankNotice').style.color = "#f59e0b";
@@ -792,7 +862,6 @@
       bulb.style.background = hornActive ? 'var(--led-red)' : '#1e293b';
       bulb.style.boxShadow = hornActive ? '0 0 16px var(--led-red)' : 'none';
 
-      // OBS Scorebug sync
       document.getElementById('obsWhite').textContent = scoreWhite;
       document.getElementById('obsDark').textContent = scoreDark;
       document.getElementById('obsPeriod').textContent = `Q${period}`;
@@ -836,7 +905,6 @@
           <span style="color:#4ade80;">"${txt}"</span>
         `;
       } else {
-        // Daktronics 4498 RTD format
         const shotTxt = isBlanked ? "   " : `${String(shotSec).padStart(2, ' ')} `;
         row.innerHTML = `
           <span style="color:#64748b;">${now}</span>

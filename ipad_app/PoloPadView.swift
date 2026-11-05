@@ -42,7 +42,6 @@ struct Mechanical3DButtonStyle: ButtonStyle {
                         )
                         .offset(y: isPressed ? extrusionHeight - 2 : 0)
                         .overlay(
-                            // 1px Razor Bevel Edge Light
                             RoundedRectangle(cornerRadius: 22, style: .continuous)
                                 .stroke(
                                     LinearGradient(
@@ -118,11 +117,9 @@ struct RecessedChamberModifier: ViewModifier {
         content
             .background(
                 ZStack {
-                    // Deep optical chamber floor
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(Color(red: 0.03, green: 0.04, blue: 0.06))
 
-                    // Machine-Milled Outer Chamfer (Bottom light bounce + Top inner shadow)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .stroke(
                             LinearGradient(
@@ -134,10 +131,8 @@ struct RecessedChamberModifier: ViewModifier {
                         )
                 }
             )
-            // Outer drop shadow on the bezel
             .shadow(color: Color.black.opacity(0.7), radius: 16, x: 0, y: 8)
             .overlay(
-                // Inset Ambient Cavity Rim
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(Color.black.opacity(0.6), lineWidth: 3)
                     .blur(radius: 2)
@@ -178,15 +173,18 @@ struct PoloPadView: View {
             )
             .ignoresSafeArea()
 
-            VStack(spacing: 22) {
+            VStack(spacing: 20) {
                 // Machined Header HUD
                 machinedTopHeader
 
-                // Hero Clock Deck (Recessed Optical Glass Bays)
-                heroClockDeck
+                // Clocks Readout Bays
+                heroClocksBays
 
-                // Deep 3D Key Actuators (30s & 20s)
-                giant3DActuators
+                // GIANT MASTER START/STOP PLUNGER (The #1 Most Used Control)
+                giantStartStopPlunger
+
+                // Deep 3D Key Actuators (30s & 20s Resets)
+                giant3DShotActuators
 
                 // Heavy Tactile Control Dock
                 tactileUtilityDock
@@ -195,7 +193,7 @@ struct PoloPadView: View {
                 teamInstrumentBays
             }
             .padding(.horizontal, 28)
-            .padding(.vertical, 20)
+            .padding(.vertical, 18)
         }
         .sheet(isPresented: $showingExclusionSheet) {
             tactileExclusionPicker
@@ -235,7 +233,7 @@ struct PoloPadView: View {
 
             Spacer()
 
-            // Hardware Dongle Link Status Capsule (Illuminated Jewel Beacon)
+            // Protocol / Hardware Link Status Capsule
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
@@ -247,73 +245,43 @@ struct PoloPadView: View {
                         .frame(width: 4, height: 4)
                 }
 
-                Text(ble.isConnected ? "POLOBRIDGE 9600-8-E-1" : "CONNECTING DONGLE...")
+                Text(game.isShotClockBlanked ? "RULE WP 20.15 BLANKED" : (ble.isConnected ? "POLOBRIDGE CONNECTED" : "DONGLE STANDBY"))
                     .font(.system(size: 12, weight: .black, design: .monospaced))
-                    .foregroundColor(ble.isConnected ? Color(red: 0.4, green: 1.0, blue: 0.6) : .orange)
-
-                Image(systemName: "antenna.radiowaves.left.and.right")
-                    .font(.caption.bold())
-                    .foregroundColor(ble.isConnected ? .green : .orange)
+                    .foregroundColor(game.isShotClockBlanked ? Color.orange : (ble.isConnected ? Color(red: 0.4, green: 1.0, blue: 0.6) : .gray))
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(Color.black.opacity(0.6))
             .clipShape(Capsule())
-            .overlay(
-                Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1)
-            )
+            .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1))
             .shadow(color: Color.black.opacity(0.5), radius: 6, y: 3)
         }
     }
 
-    // MARK: - 2. Hero Clock Deck (Recessed Optical Glass Bays)
-    private var heroClockDeck: some View {
+    // MARK: - 2. Hero Clocks Readout Bays
+    private var heroClocksBays: some View {
         HStack(spacing: 20) {
             // Master Game Clock Chamber
-            HStack(spacing: 24) {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "stopwatch.fill")
-                            .font(.caption.weight(.bold))
-                        Text("MASTER GAME TIMER")
-                            .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                            .tracking(1.8)
-                    }
-                    .foregroundColor(Color.white.opacity(0.45))
-
-                    Text(game.formattedGameTime)
-                        .font(.system(size: 64, weight: .black, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundColor(.white)
-                        .shadow(color: Color.blue.opacity(game.isRunning ? 0.35 : 0.0), radius: 10)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Image(systemName: "stopwatch.fill")
+                        .font(.caption.weight(.bold))
+                    Text("MASTER GAME CLOCK")
+                        .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                        .tracking(1.8)
                 }
+                .foregroundColor(Color.white.opacity(0.45))
 
-                Spacer()
-
-                // 3D Master Start/Stop Plunger Button
-                Button(action: { game.toggleStartStop() }) {
-                    HStack(spacing: 10) {
-                        Image(systemName: game.isRunning ? "pause.fill" : "play.fill")
-                            .font(.title3.weight(.black))
-                        Text(game.isRunning ? "STOP" : "START")
-                            .font(.title3.weight(.heavy))
-                            .tracking(1)
-                    }
-                    .frame(width: 154, height: 68)
+                Text(game.formattedGameTime)
+                    .font(.system(size: 68, weight: .black, design: .rounded))
+                    .monospacedDigit()
                     .foregroundColor(.white)
-                }
-                .buttonStyle(
-                    Mechanical3DButtonStyle(
-                        primaryColor: game.isRunning ? Color(red: 0.95, green: 0.22, blue: 0.22) : Color(red: 0.12, green: 0.78, blue: 0.42),
-                        shadowColor: game.isRunning ? Color(red: 0.55, green: 0.08, blue: 0.08) : Color(red: 0.05, green: 0.42, blue: 0.22),
-                        extrusionHeight: 6,
-                        haptic: .heavy
-                    )
-                )
+                    .shadow(color: Color.blue.opacity(game.isRunning ? 0.35 : 0.0), radius: 10)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
-            .padding(.vertical, 18)
-            .recessedChamber(cornerRadius: 24)
+            .padding(.vertical, 16)
+            .recessedChamber(cornerRadius: 22)
 
             // Shot Clock Recessed Chamber
             VStack(alignment: .trailing, spacing: 2) {
@@ -324,36 +292,82 @@ struct PoloPadView: View {
                         .font(.system(size: 11, weight: .heavy, design: .monospaced))
                         .tracking(1.8)
                 }
-                .foregroundColor(game.shotTimeMs <= 5000 ? Color.red : Color.orange)
+                .foregroundColor(game.isShotClockBlanked ? Color.gray : (game.shotTimeMs <= 5000 ? Color.red : Color.orange))
 
                 Text(game.formattedShotTime)
-                    .font(.system(size: 76, weight: .black, design: .rounded))
+                    .font(.system(size: 78, weight: .black, design: .rounded))
                     .monospacedDigit()
                     .foregroundColor(
-                        game.shotTimeMs <= 5000
-                            ? Color(red: 1.0, green: 0.25, blue: 0.25)
-                            : Color(red: 1.0, green: 0.82, blue: 0.12)
+                        game.isShotClockBlanked
+                            ? Color(white: 0.25)
+                            : (game.shotTimeMs <= 5000 ? Color(red: 1.0, green: 0.25, blue: 0.25) : Color(red: 1.0, green: 0.82, blue: 0.12))
                     )
-                    .frame(minWidth: 155, alignment: .trailing)
+                    .frame(minWidth: 160, alignment: .trailing)
                     .shadow(
-                        color: (game.shotTimeMs <= 5000 ? Color.red : Color.yellow).opacity(0.4),
+                        color: game.isShotClockBlanked ? Color.clear : (game.shotTimeMs <= 5000 ? Color.red : Color.yellow).opacity(0.4),
                         radius: 14
                     )
             }
             .padding(.horizontal, 26)
             .padding(.vertical, 14)
-            .recessedChamber(cornerRadius: 24)
+            .recessedChamber(cornerRadius: 22)
         }
     }
 
-    // MARK: - 3. Deep 3D Key Actuators (30s & 20s)
-    private var giant3DActuators: some View {
-        HStack(spacing: 22) {
+    // MARK: - 3. GIANT MASTER START/STOP PLUNGER (Much Bigger Hero Button)
+    private var giantStartStopPlunger: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.6)) {
+                game.toggleStartStop()
+            }
+        }) {
+            HStack(spacing: 18) {
+                Image(systemName: game.isRunning ? "pause.fill" : "play.fill")
+                    .font(.system(size: 42, weight: .black))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(game.isRunning ? "STOP CLOCKS" : "START CLOCKS")
+                        .font(.system(size: 34, weight: .black, design: .rounded))
+                        .tracking(1.5)
+
+                    Text(game.isRunning ? "PRESS ON REFEREE WHISTLE / FOUL" : "PRESS WHEN BALL IS PUT IN PLAY")
+                        .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                        .opacity(0.85)
+                }
+
+                Spacer()
+
+                // State Indicator Pill
+                Text(game.isRunning ? "RUNNING" : "STOPPED")
+                    .font(.system(size: 14, weight: .black, design: .monospaced))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.35))
+                    .clipShape(Capsule())
+            }
+            .padding(.horizontal, 32)
+            .frame(maxWidth: .infinity)
+            .frame(height: 98) // Substantially bigger height & hit area
+            .foregroundColor(.white)
+        }
+        .buttonStyle(
+            Mechanical3DButtonStyle(
+                primaryColor: game.isRunning ? Color(red: 0.95, green: 0.20, blue: 0.20) : Color(red: 0.10, green: 0.80, blue: 0.44),
+                shadowColor: game.isRunning ? Color(red: 0.52, green: 0.08, blue: 0.08) : Color(red: 0.04, green: 0.45, blue: 0.24),
+                extrusionHeight: 10,
+                haptic: .heavy
+            )
+        )
+    }
+
+    // MARK: - 4. Deep 3D Key Actuators (30s & 20s Resets)
+    private var giant3DShotActuators: some View {
+        HStack(spacing: 20) {
             // 30 SECONDS ACTUATOR (Full Possession Change)
             Button(action: { game.reset30() }) {
                 VStack(spacing: 4) {
                     Text("30")
-                        .font(.system(size: 66, weight: .black, design: .rounded))
+                        .font(.system(size: 64, weight: .black, design: .rounded))
                         .monospacedDigit()
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.counterclockwise.circle.fill")
@@ -364,7 +378,7 @@ struct PoloPadView: View {
                     .opacity(0.95)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 120)
+                .frame(height: 116)
                 .foregroundColor(.white)
             }
             .buttonStyle(
@@ -380,7 +394,7 @@ struct PoloPadView: View {
             Button(action: { game.reset20() }) {
                 VStack(spacing: 4) {
                     Text("20")
-                        .font(.system(size: 66, weight: .black, design: .rounded))
+                        .font(.system(size: 64, weight: .black, design: .rounded))
                         .monospacedDigit()
                     HStack(spacing: 6) {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -391,7 +405,7 @@ struct PoloPadView: View {
                     .opacity(0.95)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 120)
+                .frame(height: 116)
                 .foregroundColor(.white)
             }
             .buttonStyle(
@@ -405,10 +419,9 @@ struct PoloPadView: View {
         }
     }
 
-    // MARK: - 4. Heavy Tactile Utility Dock
+    // MARK: - 5. Heavy Tactile Utility Dock
     private var tactileUtilityDock: some View {
         HStack(spacing: 14) {
-            // Undo Reset Key
             Button(action: { game.undoLastReset() }) {
                 Label("UNDO RESET", systemImage: "arrow.uturn.backward.circle.fill")
                     .font(.system(size: 14, weight: .heavy))
@@ -425,7 +438,6 @@ struct PoloPadView: View {
                 )
             )
 
-            // -1s Nudge
             Button(action: { game.adjustShotClock(bySeconds: -1) }) {
                 Text("-1s Shot")
                     .font(.system(size: 14, weight: .heavy))
@@ -442,7 +454,6 @@ struct PoloPadView: View {
                 )
             )
 
-            // +1s Nudge
             Button(action: { game.adjustShotClock(bySeconds: 1) }) {
                 Text("+1s Shot")
                     .font(.system(size: 14, weight: .heavy))
@@ -459,7 +470,6 @@ struct PoloPadView: View {
                 )
             )
 
-            // Emergency Aquatic Horn Slammer
             Button(action: { game.triggerManualHorn() }) {
                 Label("HORN", systemImage: "speaker.wave.3.fill")
                     .font(.system(size: 15, weight: .black))
@@ -478,7 +488,7 @@ struct PoloPadView: View {
         }
     }
 
-    // MARK: - 5. Recessed Team Instrument Bays
+    // MARK: - 6. Recessed Team Instrument Bays
     private var teamInstrumentBays: some View {
         HStack(spacing: 20) {
             tactileTeamBay(
@@ -517,7 +527,6 @@ struct PoloPadView: View {
 
                 Spacer()
 
-                // Mechanical Score Knobs
                 HStack(spacing: 10) {
                     Button(action: { game.updateScore(isWhite: isWhite, delta: -1) }) {
                         Text("−")
@@ -560,7 +569,6 @@ struct PoloPadView: View {
 
             Divider().background(Color.white.opacity(0.08))
 
-            // Slotted Exclusion Deck
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("20s MAJOR FOULS")
@@ -602,10 +610,13 @@ struct PoloPadView: View {
                                     .monospacedDigit()
                                     .foregroundColor(ex.remainingSeconds <= 5 ? .yellow : .white)
 
-                                Button(action: { game.removeExclusion(id: ex.id) }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.caption)
-                                        .foregroundColor(Color.white.opacity(0.6))
+                                Button(action: { game.earlyReleaseExclusion(id: ex.id) }) {
+                                    Text("RELEASE")
+                                        .font(.system(size: 9, weight: .black))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.white.opacity(0.2))
+                                        .clipShape(RoundedRectangle(cornerRadius: 4))
                                 }
                             }
                             .padding(.horizontal, 10)
@@ -629,7 +640,7 @@ struct PoloPadView: View {
         .recessedChamber(cornerRadius: 22)
     }
 
-    // MARK: - 6. Slotted Ejection Picker Sheet
+    // MARK: - 7. Slotted Ejection Picker Sheet
     private var tactileExclusionPicker: some View {
         NavigationStack {
             VStack(spacing: 20) {
