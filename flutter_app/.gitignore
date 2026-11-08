@@ -1,0 +1,111 @@
+# ==============================================================================
+# PoloPad Pro — Comprehensive Git Ignore Rules
+# Covers Flutter SDK, Dart, Widget Previews, IDEs, OS artifacts, and credentials.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Dart & Flutter SDK Artifacts
+# ------------------------------------------------------------------------------
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+build/
+ephemeral/
+
+# Generated Flutter plugin registrations
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Flutter Widget Preview caching directory
+.widget_preview/
+
+# ------------------------------------------------------------------------------
+# 2. Test, Coverage, and Driver Artifacts
+# ------------------------------------------------------------------------------
+coverage/
+test-results/
+*.lcov
+lcov.info
+
+# Flutter Driver Timeline and Performance Summaries
+scrolling_timeline.json
+*.timeline.json
+*.timeline_summary.json
+
+# ------------------------------------------------------------------------------
+# 3. Android Studio & IntelliJ IDEA
+# ------------------------------------------------------------------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# ------------------------------------------------------------------------------
+# 4. Visual Studio Code
+# ------------------------------------------------------------------------------
+.vscode/
+*.code-workspace
+
+# ------------------------------------------------------------------------------
+# 5. Operating System Metadata
+# ------------------------------------------------------------------------------
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux / Text Editor Backups
+*~
+*.swp
+*.swo
+.fuse_hidden*
+
+# ------------------------------------------------------------------------------
+# 6. Android Platform Build Outputs (if generated)
+# ------------------------------------------------------------------------------
+**/android/app/build/
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+*.keystore
+*.jks
+
+# ------------------------------------------------------------------------------
+# 7. iOS Platform Build Outputs (if generated)
+# ------------------------------------------------------------------------------
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Pods/
+**/ios/.symlinks/
+*.xcworkspace
+*.xcuserdata
+
+# ------------------------------------------------------------------------------
+# 8. Web & Desktop Platform Ephemerals
+# ------------------------------------------------------------------------------
+**/web/build/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+
+# ------------------------------------------------------------------------------
+# 9. Environment Configurations & Secrets
+# ------------------------------------------------------------------------------
+.env
+.env.*
+*.local
+*.pem
+*.key
+*.cert

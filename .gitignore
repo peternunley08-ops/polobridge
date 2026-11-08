@@ -1,0 +1,14 @@
+# OS and Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.log
+
+# Build & Dependencies
+node_modules/
+.dart_tool/
+build/
+
+# Internal Agent Workspaces & Archives
+.agents/
+conversation_log.zip

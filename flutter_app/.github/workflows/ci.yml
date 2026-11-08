@@ -1,0 +1,75 @@
+name: PoloPad Pro CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - 'release/**'
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-and-test:
+    name: Flutter Analyze & Automated Tests
+    runs-on: ubuntu-latest
+
+    # Set working directory to flutter_app for monorepo compatibility.
+    # Note: If this repository is hosted as a standalone repo where pubspec.yaml
+    # is at the root, remove or change this line to: working-directory: .
+    defaults:
+      run:
+        working-directory: flutter_app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+          cache-key: 'flutter-:os:-:channel:-:version:-:arch:-:hash:'
+
+      - name: Print Flutter & Dart Environment
+        run: |
+          flutter --version
+          dart --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify code formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: Run Flutter static analysis
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Run Unit and Widget Tests with Coverage
+        run: flutter test --coverage test/
+
+      - name: Run Headless Acceptance Integration Tests
+        run: flutter test integration_test/app_test.dart
+
+      - name: Upload Test Coverage Artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flutter-coverage-report
+          path: flutter_app/coverage/
+          if-no-files-found: ignore
