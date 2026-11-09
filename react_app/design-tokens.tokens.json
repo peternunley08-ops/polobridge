@@ -1,0 +1,44 @@
+{
+  "$schema": "https://tr.designtokens.org/format/",
+  "aquatic": {
+    "color": {
+      "canvas": {
+        "pool-sky-900": { "$value": "#0c4a6e", "$type": "color", "$description": "Top-left sunlit Olympic pool gradient start" },
+        "sapphire-blue-900": { "$value": "#1e3a8a", "$type": "color", "$description": "Mid deep-water gradient stop" },
+        "optical-indigo-950": { "$value": "#1e1b4b", "$type": "color", "$description": "Recessed optical clock chamber & bottom-right gradient stop" }
+      },
+      "surface": {
+        "card-glass": { "$value": "rgba(12, 74, 110, 0.78)", "$type": "color", "$description": "Translucent sapphire/teal card surface" },
+        "chamber-recessed": { "$value": "rgba(8, 47, 73, 0.90)", "$type": "color", "$description": "High-contrast LED clock readout chamber" }
+      },
+      "border": {
+        "glass-subtle": { "$value": "rgba(34, 211, 238, 0.30)", "$type": "color", "$description": "Standard cyan-400/30 glass border" },
+        "glass-active": { "$value": "rgba(34, 211, 238, 0.60)", "$type": "color", "$description": "Active/focused cyan-300/60 border" }
+      },
+      "plunger": {
+        "emerald-start-30s": { "$value": "#10b981", "$type": "color", "$description": "START CLOCK & 30s FULL RESET primary actuator" },
+        "emerald-shadow": { "$value": "#065f46", "$type": "color", "$description": "3D bottom lip for emerald plungers" },
+        "teal-reset-30s": { "$value": "#14b8a6", "$type": "color", "$description": "30s Possession Reset plunger" },
+        "amber-rebound-20s": { "$value": "#fbbf24", "$type": "color", "$description": "20s EXCLUSION / REBOUND plunger & Game Clock digits" },
+        "amber-shadow": { "$value": "#92400e", "$type": "color", "$description": "3D bottom lip for amber plungers" },
+        "rose-stop-horn": { "$value": "#f43f5e", "$type": "color", "$description": "STOP CLOCK, AIR HORN & Shot Clock digits" },
+        "rose-shadow": { "$value": "#881337", "$type": "color", "$description": "3D bottom lip for rose plungers" }
+      }
+    },
+    "typography": {
+      "fontFamily": {
+        "ui-sans": { "$value": "Inter, -apple-system, BlinkMacSystemFont, sans-serif", "$type": "fontFamily" },
+        "telemetry-mono": { "$value": "JetBrains Mono, SFMono-Regular, ui-monospace, monospace", "$type": "fontFamily" }
+      },
+      "fontSize": {
+        "floor-xs": { "$value": "12px", "$type": "dimension", "$description": "Minimum outdoor sunlight-readable text floor" },
+        "plunger-title": { "$value": "32px", "$type": "dimension" },
+        "clock-jumbo": { "$value": "60px", "$type": "dimension" }
+      }
+    },
+    "radius": {
+      "card-xl": { "$value": "24px", "$type": "dimension" },
+      "chassis-2xl": { "$value": "36px", "$type": "dimension" }
+    }
+  }
+}

@@ -1,0 +1,254 @@
+solid polobridge_front_panel_drill_jig
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 120.000 65.000 0.000
+      vertex 120.000 0.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 0.000 65.000 0.000
+      vertex 120.000 65.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 3.000
+      vertex 120.000 0.000 3.000
+      vertex 120.000 65.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 3.000
+      vertex 120.000 65.000 3.000
+      vertex 0.000 65.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 120.000 0.000 0.000
+      vertex 120.000 0.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 120.000 0.000 3.000
+      vertex 0.000 0.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 65.000 0.000
+      vertex 0.000 65.000 3.000
+      vertex 120.000 65.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 65.000 0.000
+      vertex 120.000 65.000 3.000
+      vertex 120.000 65.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 0.000 0.000 3.000
+      vertex 0.000 65.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 0.000 65.000 3.000
+      vertex 0.000 65.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 120.000 0.000 0.000
+      vertex 120.000 65.000 0.000
+      vertex 120.000 65.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 120.000 0.000 0.000
+      vertex 120.000 65.000 3.000
+      vertex 120.000 0.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 0.000 -32.000
+      vertex 120.000 65.000 -32.000
+      vertex 120.000 0.000 -32.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 0.000 -32.000
+      vertex 117.000 65.000 -32.000
+      vertex 120.000 65.000 -32.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 0.000 0.000
+      vertex 120.000 0.000 0.000
+      vertex 120.000 65.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 0.000 0.000
+      vertex 120.000 65.000 0.000
+      vertex 117.000 65.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 0.000 -32.000
+      vertex 120.000 0.000 -32.000
+      vertex 120.000 0.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 0.000 -32.000
+      vertex 120.000 0.000 0.000
+      vertex 117.000 0.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 65.000 -32.000
+      vertex 117.000 65.000 0.000
+      vertex 120.000 65.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 65.000 -32.000
+      vertex 120.000 65.000 0.000
+      vertex 120.000 65.000 -32.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 0.000 -32.000
+      vertex 117.000 0.000 0.000
+      vertex 117.000 65.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 117.000 0.000 -32.000
+      vertex 117.000 65.000 0.000
+      vertex 117.000 65.000 -32.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 120.000 0.000 -32.000
+      vertex 120.000 65.000 -32.000
+      vertex 120.000 65.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 120.000 0.000 -32.000
+      vertex 120.000 65.000 0.000
+      vertex 120.000 0.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 14.000 3.000
+      vertex 96.000 26.000 3.000
+      vertex 96.000 14.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 14.000 3.000
+      vertex 52.000 26.000 3.000
+      vertex 96.000 26.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 14.000 7.000
+      vertex 96.000 14.000 7.000
+      vertex 96.000 26.000 7.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 14.000 7.000
+      vertex 96.000 26.000 7.000
+      vertex 52.000 26.000 7.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 14.000 3.000
+      vertex 96.000 14.000 3.000
+      vertex 96.000 14.000 7.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 14.000 3.000
+      vertex 96.000 14.000 7.000
+      vertex 52.000 14.000 7.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 26.000 3.000
+      vertex 52.000 26.000 7.000
+      vertex 96.000 26.000 7.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 26.000 3.000
+      vertex 96.000 26.000 7.000
+      vertex 96.000 26.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 14.000 3.000
+      vertex 52.000 14.000 7.000
+      vertex 52.000 26.000 7.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 52.000 14.000 3.000
+      vertex 52.000 26.000 7.000
+      vertex 52.000 26.000 3.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 96.000 14.000 3.000
+      vertex 96.000 26.000 3.000
+      vertex 96.000 26.000 7.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 96.000 14.000 3.000
+      vertex 96.000 26.000 7.000
+      vertex 96.000 14.000 7.000
+    endloop
+  endfacet
+endsolid polobridge_front_panel_drill_jig

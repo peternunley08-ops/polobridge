@@ -1,0 +1,338 @@
+solid polopad_poolside_sunhood_stand
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 267.000 95.000 0.000
+      vertex 267.000 0.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 0.000 95.000 0.000
+      vertex 267.000 95.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 12.000
+      vertex 267.000 0.000 12.000
+      vertex 267.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 12.000
+      vertex 267.000 95.000 12.000
+      vertex 0.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 267.000 0.000 0.000
+      vertex 267.000 0.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 267.000 0.000 12.000
+      vertex 0.000 0.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 95.000 0.000
+      vertex 0.000 95.000 12.000
+      vertex 267.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 95.000 0.000
+      vertex 267.000 95.000 12.000
+      vertex 267.000 95.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 0.000 0.000 12.000
+      vertex 0.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 0.000
+      vertex 0.000 95.000 12.000
+      vertex 0.000 95.000 0.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 267.000 0.000 0.000
+      vertex 267.000 95.000 0.000
+      vertex 267.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 267.000 0.000 0.000
+      vertex 267.000 95.000 12.000
+      vertex 267.000 0.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 12.000
+      vertex 6.000 95.000 12.000
+      vertex 6.000 0.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 12.000
+      vertex 0.000 95.000 12.000
+      vertex 6.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 175.000
+      vertex 6.000 0.000 175.000
+      vertex 6.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 175.000
+      vertex 6.000 95.000 175.000
+      vertex 0.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 12.000
+      vertex 6.000 0.000 12.000
+      vertex 6.000 0.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 12.000
+      vertex 6.000 0.000 175.000
+      vertex 0.000 0.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 95.000 12.000
+      vertex 0.000 95.000 175.000
+      vertex 6.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 95.000 12.000
+      vertex 6.000 95.000 175.000
+      vertex 6.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 12.000
+      vertex 0.000 0.000 175.000
+      vertex 0.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 12.000
+      vertex 0.000 95.000 175.000
+      vertex 0.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 6.000 0.000 12.000
+      vertex 6.000 95.000 12.000
+      vertex 6.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 6.000 0.000 12.000
+      vertex 6.000 95.000 175.000
+      vertex 6.000 0.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 0.000 12.000
+      vertex 267.000 95.000 12.000
+      vertex 267.000 0.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 0.000 12.000
+      vertex 261.000 95.000 12.000
+      vertex 267.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 0.000 175.000
+      vertex 267.000 0.000 175.000
+      vertex 267.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 0.000 175.000
+      vertex 267.000 95.000 175.000
+      vertex 261.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 0.000 12.000
+      vertex 267.000 0.000 12.000
+      vertex 267.000 0.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 0.000 12.000
+      vertex 267.000 0.000 175.000
+      vertex 261.000 0.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 95.000 12.000
+      vertex 261.000 95.000 175.000
+      vertex 267.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 95.000 12.000
+      vertex 267.000 95.000 175.000
+      vertex 267.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 0.000 12.000
+      vertex 261.000 0.000 175.000
+      vertex 261.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 261.000 0.000 12.000
+      vertex 261.000 95.000 175.000
+      vertex 261.000 95.000 12.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 267.000 0.000 12.000
+      vertex 267.000 95.000 12.000
+      vertex 267.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 267.000 0.000 12.000
+      vertex 267.000 95.000 175.000
+      vertex 267.000 0.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 169.000
+      vertex 267.000 95.000 169.000
+      vertex 267.000 0.000 169.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 169.000
+      vertex 0.000 95.000 169.000
+      vertex 267.000 95.000 169.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 175.000
+      vertex 267.000 0.000 175.000
+      vertex 267.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 175.000
+      vertex 267.000 95.000 175.000
+      vertex 0.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 169.000
+      vertex 267.000 0.000 169.000
+      vertex 267.000 0.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 169.000
+      vertex 267.000 0.000 175.000
+      vertex 0.000 0.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 95.000 169.000
+      vertex 0.000 95.000 175.000
+      vertex 267.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 95.000 169.000
+      vertex 267.000 95.000 175.000
+      vertex 267.000 95.000 169.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 169.000
+      vertex 0.000 0.000 175.000
+      vertex 0.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 0.000 0.000 169.000
+      vertex 0.000 95.000 175.000
+      vertex 0.000 95.000 169.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 267.000 0.000 169.000
+      vertex 267.000 95.000 169.000
+      vertex 267.000 95.000 175.000
+    endloop
+  endfacet
+  facet normal 0.0 0.0 1.0
+    outer loop
+      vertex 267.000 0.000 169.000
+      vertex 267.000 95.000 175.000
+      vertex 267.000 0.000 175.000
+    endloop
+  endfacet
+endsolid polopad_poolside_sunhood_stand

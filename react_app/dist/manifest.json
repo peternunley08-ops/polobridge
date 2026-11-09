@@ -1,0 +1,19 @@
+{
+  "name": "PoloPad Pro — Wireless Water Polo Timing & Shot Clock Console",
+  "short_name": "PoloPad Pro",
+  "description": "Dual-thumb iPadOS & Web Bluetooth water polo timing console for Colorado Time Systems (System 6 / WA-3) and Daktronics All Sport 5000 with 6-8 Sports Live Sync.",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0c4a6e",
+  "theme_color": "#0284c7",
+  "categories": ["sports", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "./assets/polobridge_hardware_dongle.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,16 +1,18 @@
 /*
- * PoloBridge Firmware - Dual Protocol (CTS & Daktronics) with Rule Automation
- * Target: ESP32-S3 DevKit
+ * PoloBridge Firmware Rev 2.5 — Dual-Mode RS-232 + 3-Channel Pickle Companion
+ * + Triple-Redundant 105dB Horn Driver + 3 Emergency Lid Fail-Safe Buttons
+ * Target: ESP32-S3-WROOM-1U-N8 / ESP32-S3 DevKitC
  *
- * Supported Protocols:
+ * Supported Protocols (Dual-Output Active Simultaneously):
  *   1. Colorado Time Systems (CTS System 6 / System 5 / WA-3): 9600 Baud, 8-E-1
  *   2. Daktronics (All Sport 5000 / RTD Water Polo Code 4498): 19200 Baud, 8-N-1
+ *   3. 3-Channel Isolated Optocoupler Pickle Companion (30s Reset, 20s Reset, Start/Stop)
  *
- * Implements Official World Aquatics & NCAA Timing Rules:
- *   - Rule WP 20.15: Automatic Shot Clock Blanking when Game Time < Shot Time
- *   - Rule WP 21: Early Exclusion Re-entry on Goal or Defensive Turnover
- *   - Sub-5s tenths of a second display
- *   - Isolated RS-232 / Optocoupled console pickle tap
+ * Implements Official World Aquatics, NCAA & NFHS Timing Rules:
+ *   - Shot Clock Expiration (0.0s): Automatically stops BOTH Game & Shot clocks and fires Triple Horn
+ *   - Rule WP 20.15: Automatic Shot Clock Blanking when Game Time <= Shot Time
+ *   - Hardware Fail-Safe: 3 Waterproof Emergency Lid Buttons (Start/Stop, 30s, 20s) operate
+ *     autonomously even if the iPad battery dies mid-quarter.
  */
 
 #include <Arduino.h>
@@ -20,13 +22,27 @@
 #include <BLE2902.h>
 
 // ==========================================
-// PIN DEFINITIONS
+// PIN DEFINITIONS (POLOBRIDGE REV 2.5 PCB)
 // ==========================================
-#define SERIAL_TX_PIN       17    // Connect to Isolated RS-232 Driver (ADM3251E / MAX3232)
-#define SERIAL_RX_PIN       16    // Optional Receive
-#define STATUS_LED_PIN      2     // Connection / Activity LED
-#define RELAY_PICKLE_PIN    4     // Optocoupler relay for System 6 Pickle switch tap
-#define PROTOCOL_MODE_PIN   5     // Hardware switch: LOW = CTS (9600), HIGH = Daktronics (19200)
+#define SERIAL_TX_PIN             17    // Isolated RS-232 Driver (ADuM1201 -> MAX3232E)
+#define SERIAL_RX_PIN             16    // Isolated RS-232 Receive
+#define STATUS_LED_PIN            2     // Cyan/Emerald BLE & Activity Status LED
+
+// 3-Channel Isolated Optocoupler Pickle Companion Port (EL817S x3 -> TRS / Breakout)
+#define PICKLE_30S_PIN            4     // Ch 1: System 6 "RESET 1 (30s)" optocoupler
+#define PICKLE_20S_PIN            5     // Ch 2: System 6 "RESET 2 (20s)" optocoupler
+#define PICKLE_START_STOP_PIN     6     // Ch 3: System 6 "START / STOP" optocoupler
+
+// Triple-Redundant Acoustic Horn Driver (AO3400A MOSFET -> 105dB Marine Piezo / Aux Horn)
+#define AUX_HORN_MOSFET_PIN       7     // Fires onboard 105dB piezo in sync with RS-232 0x40 bit
+
+// 3 Waterproof Emergency Fail-Safe Buttons on Enclosure Lid (Active LOW w/ Internal Pull-Up)
+#define BTN_FAILSAFE_START_STOP   18    // Lid Button 1: Emergency Start / Pause Clock
+#define BTN_FAILSAFE_RESET_30     19    // Lid Button 2: Emergency 30s Full Reset
+#define BTN_FAILSAFE_RESET_20     20    // Lid Button 3: Emergency 20s Exclusion / Rebound Reset
+
+// Hardware Protocol Toggle Switch
+#define PROTOCOL_MODE_PIN         21    // LOW = CTS (9600 8-E-1), HIGH = Daktronics (19200 8-N-1)
 
 // ==========================================
 // BLE SERVICE & CHARACTERISTIC UUIDs
@@ -49,25 +65,26 @@ enum CommandCode {
     CMD_SET_GAME_CLOCK  = 0x06,
     CMD_TRIGGER_HORN    = 0x07,
     CMD_SET_SCORES      = 0x08,
-    CMD_PULSE_PICKLE    = 0x09,
+    CMD_PULSE_PICKLE    = 0x09, // payload: [durMs, channel (1=30s, 2=20s, 3=Start/Stop)]
     CMD_SET_PROTOCOL    = 0x0B  // payload: [uint8_t mode: 0=CTS, 1=Daktronics]
 };
 
 struct GameState {
     bool isRunning = false;
-    uint32_t gameTimeMs = 8 * 60 * 1000; // 8 minutes default
-    uint32_t shotTimeMs = 30 * 1000;     // 30 seconds default
+    uint32_t gameTimeMs = 7 * 60 * 1000; // 7:00 NFHS default (configurable to 8:00 NCAA)
+    uint32_t shotTimeMs = 30 * 1000;     // 30.0s default
     uint8_t scoreWhite = 0;
     uint8_t scoreDark = 0;
     uint8_t period = 1;
 
-    bool isBlanked = false; // Rule WP 20.15: Shot clock blanked when Game < Shot
+    bool isBlanked = false; // Rule WP 20.15: Shot clock blanked when Game <= Shot
 
     bool hornActive = false;
     uint32_t hornUntilMs = 0;
 
-    bool pickleActive = false;
-    uint32_t pickleUntilMs = 0;
+    uint32_t pickle30UntilMs = 0;
+    uint32_t pickle20UntilMs = 0;
+    uint32_t pickleStartStopUntilMs = 0;
 
     ProtocolMode protocol = MODE_CTS;
 };
@@ -79,6 +96,23 @@ BLECharacteristic* pStatusChar = nullptr;
 bool deviceConnected = false;
 
 HardwareSerial ScoreSerial(1);
+
+// ==========================================
+// 3-CHANNEL PICKLE & TRIPLE HORN HELPERS
+// ==========================================
+void pulsePickleChannel(uint8_t pin, uint32_t durationMs = 150) {
+    uint32_t until = millis() + durationMs;
+    digitalWrite(pin, HIGH);
+    if (pin == PICKLE_30S_PIN) state.pickle30UntilMs = until;
+    else if (pin == PICKLE_20S_PIN) state.pickle20UntilMs = until;
+    else if (pin == PICKLE_START_STOP_PIN) state.pickleStartStopUntilMs = until;
+}
+
+void triggerHorn(uint32_t durationMs = 1500) {
+    state.hornActive = true;
+    state.hornUntilMs = millis() + durationMs;
+    digitalWrite(AUX_HORN_MOSFET_PIN, HIGH); // Fire onboard 105dB Piezo / Aux Horn MOSFET
+}
 
 // ==========================================
 // COLORADO TIME SYSTEMS (CTS) PROTOCOL ENGINE
@@ -106,9 +140,9 @@ void broadcastCts() {
 
     // RULE WP 20.15 AUTOMATION:
     // If the game clock has less time remaining than the shot clock, blank the display!
-    if (state.gameTimeMs <= state.shotTimeMs) {
+    if (state.gameTimeMs <= state.shotTimeMs && state.gameTimeMs > 0) {
         state.isBlanked = true;
-        snprintf(shotAscii, sizeof(shotAscii), "        "); // Blank 8 spaces
+        snprintf(shotAscii, sizeof(shotAscii), "        ");
     } else {
         state.isBlanked = false;
         uint32_t shotSec = state.shotTimeMs / 1000;
@@ -117,14 +151,13 @@ void broadcastCts() {
         if (shotSec >= 10) {
             snprintf(shotAscii, sizeof(shotAscii), "   %2lu   ", shotSec);
         } else {
-            // Under 10s: Show tenths
             snprintf(shotAscii, sizeof(shotAscii), "   %lu%lu   ", shotSec, shotTenths);
             shotAttr[4] = 0x01; // Decimal point
         }
     }
 
-    // Horn bit 6 (0x40) activates physical horn on CTS SC-500/600 shot clocks
-    if (state.hornActive && !state.isBlanked) {
+    // Horn bit 6 (0x40) activates physical 125dB horn on CTS SC-500/600 shot clocks
+    if (state.hornActive) {
         shotAttr[0] |= 0x40;
         shotAttr[7] |= 0x40;
     }
@@ -155,25 +188,19 @@ void broadcastCts() {
 // ==========================================
 // DAKTRONICS PROTOCOL ENGINE (CODE 4498)
 // ==========================================
-/*
- * Daktronics Real-Time Data (RTD) Format:
- * Sent at 19,200 Baud, 8 Data Bits, NO Parity, 1 Stop Bit (8-N-1)
- * Frame: [0x16] [0x01] [SportCode: 4498] [Payload] [0x04]
- */
 void broadcastDaktronics() {
     uint32_t shotSec = state.shotTimeMs / 1000;
     uint32_t gameMin = state.gameTimeMs / 60000;
     uint32_t gameSec = (state.gameTimeMs % 60000) / 1000;
 
     char shotBuffer[4];
-    if (state.gameTimeMs <= state.shotTimeMs) {
-        snprintf(shotBuffer, sizeof(shotBuffer), "   "); // Blanked
+    if (state.gameTimeMs <= state.shotTimeMs && state.gameTimeMs > 0) {
+        snprintf(shotBuffer, sizeof(shotBuffer), "   ");
     } else {
         snprintf(shotBuffer, sizeof(shotBuffer), "%2lu ", shotSec);
     }
 
     char daktPacket[64];
-    // Start of Heading (0x01), Start of Text (0x02), Record Type 4498
     int len = snprintf(daktPacket, sizeof(daktPacket),
         "\x16\x01" "4498" "%02lu:%02lu" "%s" "%2u" "%2u" "%1u" "\x04",
         gameMin, gameSec, shotBuffer, state.scoreWhite, state.scoreDark, state.period
@@ -209,20 +236,15 @@ class ServerCallbacks : public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
         deviceConnected = true;
         digitalWrite(STATUS_LED_PIN, HIGH);
-        Serial.println("[BLE] iPad Pro Connected!");
+        Serial.println("[BLE] PoloPad Pro Connected!");
     }
     void onDisconnect(BLEServer* pServer) {
         deviceConnected = false;
         digitalWrite(STATUS_LED_PIN, LOW);
-        Serial.println("[BLE] Disconnected. Re-advertising...");
+        Serial.println("[BLE] iPad Disconnected — Autonomous Hardware Clock & Lid Buttons Active.");
         pServer->startAdvertising();
     }
 };
-
-void triggerHorn(uint32_t durationMs = 1200) {
-    state.hornActive = true;
-    state.hornUntilMs = millis() + durationMs;
-}
 
 class CommandCallbacks : public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic* pCharacteristic) {
@@ -234,16 +256,24 @@ class CommandCallbacks : public BLECharacteristicCallbacks {
 
         switch (cmd) {
             case CMD_STOP:
-                state.isRunning = false;
+                if (state.isRunning) {
+                    state.isRunning = false;
+                    pulsePickleChannel(PICKLE_START_STOP_PIN, 150);
+                }
                 break;
             case CMD_START:
-                state.isRunning = true;
+                if (!state.isRunning) {
+                    state.isRunning = true;
+                    pulsePickleChannel(PICKLE_START_STOP_PIN, 150);
+                }
                 break;
             case CMD_RESET_30:
                 state.shotTimeMs = 30 * 1000;
+                pulsePickleChannel(PICKLE_30S_PIN, 150);
                 break;
             case CMD_RESET_20:
                 state.shotTimeMs = 20 * 1000;
+                pulsePickleChannel(PICKLE_20S_PIN, 150);
                 break;
             case CMD_SET_SHOT_CLOCK:
                 if (value.length() >= 3) {
@@ -256,7 +286,7 @@ class CommandCallbacks : public BLECharacteristicCallbacks {
                 }
                 break;
             case CMD_TRIGGER_HORN: {
-                uint16_t dur = (value.length() >= 3) ? ((data[1] << 8) | data[2]) : 1200;
+                uint16_t dur = (value.length() >= 3) ? ((data[1] << 8) | data[2]) : 1500;
                 triggerHorn(dur);
                 break;
             }
@@ -269,9 +299,10 @@ class CommandCallbacks : public BLECharacteristicCallbacks {
                 break;
             case CMD_PULSE_PICKLE: {
                 uint8_t dur = (value.length() >= 2) ? data[1] : 150;
-                digitalWrite(RELAY_PICKLE_PIN, HIGH);
-                state.pickleActive = true;
-                state.pickleUntilMs = millis() + dur;
+                uint8_t ch = (value.length() >= 3) ? data[2] : 1;
+                if (ch == 2) pulsePickleChannel(PICKLE_20S_PIN, dur);
+                else if (ch == 3) pulsePickleChannel(PICKLE_START_STOP_PIN, dur);
+                else pulsePickleChannel(PICKLE_30S_PIN, dur);
                 break;
             }
             case CMD_SET_PROTOCOL:
@@ -313,18 +344,54 @@ void notifyIpad() {
 }
 
 // ==========================================
-// SETUP & LOOP
+// EMERGENCY LID BUTTON HARDWARE DEBOUNCER
+// ==========================================
+void pollEmergencyLidButtons(uint32_t now) {
+    static uint32_t lastBtnPressMs = 0;
+    if (now - lastBtnPressMs < 180) return; // 180ms tactile debounce
+
+    if (digitalRead(BTN_FAILSAFE_START_STOP) == LOW) {
+        lastBtnPressMs = now;
+        state.isRunning = !state.isRunning;
+        pulsePickleChannel(PICKLE_START_STOP_PIN, 150);
+        broadcastScoreboard();
+    } else if (digitalRead(BTN_FAILSAFE_RESET_30) == LOW) {
+        lastBtnPressMs = now;
+        state.shotTimeMs = 30 * 1000;
+        pulsePickleChannel(PICKLE_30S_PIN, 150);
+        broadcastScoreboard();
+    } else if (digitalRead(BTN_FAILSAFE_RESET_20) == LOW) {
+        lastBtnPressMs = now;
+        state.shotTimeMs = 20 * 1000;
+        pulsePickleChannel(PICKLE_20S_PIN, 150);
+        broadcastScoreboard();
+    }
+}
+
+// ==========================================
+// SETUP & DETERMINISTIC 10HZ LOOP
 // ==========================================
 void setup() {
     Serial.begin(115200);
     delay(400);
-    Serial.println("\n=== PoloBridge Pro Starting ===");
+    Serial.println("\n=== PoloBridge Pro Rev 2.5 Starting ===");
 
     pinMode(STATUS_LED_PIN, OUTPUT);
     digitalWrite(STATUS_LED_PIN, LOW);
 
-    pinMode(RELAY_PICKLE_PIN, OUTPUT);
-    digitalWrite(RELAY_PICKLE_PIN, LOW);
+    pinMode(PICKLE_30S_PIN, OUTPUT);
+    pinMode(PICKLE_20S_PIN, OUTPUT);
+    pinMode(PICKLE_START_STOP_PIN, OUTPUT);
+    digitalWrite(PICKLE_30S_PIN, LOW);
+    digitalWrite(PICKLE_20S_PIN, LOW);
+    digitalWrite(PICKLE_START_STOP_PIN, LOW);
+
+    pinMode(AUX_HORN_MOSFET_PIN, OUTPUT);
+    digitalWrite(AUX_HORN_MOSFET_PIN, LOW);
+
+    pinMode(BTN_FAILSAFE_START_STOP, INPUT_PULLUP);
+    pinMode(BTN_FAILSAFE_RESET_30, INPUT_PULLUP);
+    pinMode(BTN_FAILSAFE_RESET_20, INPUT_PULLUP);
 
     pinMode(PROTOCOL_MODE_PIN, INPUT_PULLUP);
     ProtocolMode initialMode = (digitalRead(PROTOCOL_MODE_PIN) == LOW) ? MODE_CTS : MODE_DAKTRONICS;
@@ -355,7 +422,7 @@ void setup() {
     pAdv->setScanResponse(true);
     BLEDevice::startAdvertising();
 
-    Serial.println("[BLE] Ready for pairing.");
+    Serial.println("[BLE] Ready for pairing (Dual RS-232 + 3-Ch Pickle + 105dB Piezo + 3 Fail-Safe Buttons).");
 }
 
 void loop() {
@@ -364,7 +431,10 @@ void loop() {
     static uint32_t lastNotifyMs = 0;
     uint32_t now = millis();
 
-    // 100ms Precision Time Engine
+    // Poll physical fail-safe buttons on enclosure lid
+    pollEmergencyLidButtons(now);
+
+    // 100ms Precision Autonomous Time Engine
     if (now - lastTickMs >= 100) {
         uint32_t dt = now - lastTickMs;
         lastTickMs = now;
@@ -374,27 +444,43 @@ void loop() {
                 state.gameTimeMs -= dt;
             } else {
                 state.gameTimeMs = 0;
+                state.shotTimeMs = 0;
                 state.isRunning = false;
-                triggerHorn(2000);
+                triggerHorn(2000); // End of period 2.0s horn
             }
 
-            if (state.shotTimeMs > dt) {
-                state.shotTimeMs -= dt;
-            } else {
-                state.shotTimeMs = 0;
-                triggerHorn(1200);
-                state.shotTimeMs = 30 * 1000;
+            if (state.isRunning && !state.isBlanked) {
+                if (state.shotTimeMs > dt) {
+                    state.shotTimeMs -= dt;
+                } else {
+                    // Official Rule: Shot Clock Expiration stops BOTH Game & Shot Clocks immediately!
+                    state.shotTimeMs = 0;
+                    state.isRunning = false;
+                    pulsePickleChannel(PICKLE_START_STOP_PIN, 150);
+                    triggerHorn(1500); // Shot clock violation 1.5s horn
+                }
             }
         }
     }
 
+    // Turn off Triple-Redundant Horn when duration completes
     if (state.hornActive && now >= state.hornUntilMs) {
         state.hornActive = false;
+        digitalWrite(AUX_HORN_MOSFET_PIN, LOW);
     }
 
-    if (state.pickleActive && now >= state.pickleUntilMs) {
-        digitalWrite(RELAY_PICKLE_PIN, LOW);
-        state.pickleActive = false;
+    // Turn off 3-Channel Pickle Optocouplers after pulse duration
+    if (state.pickle30UntilMs && now >= state.pickle30UntilMs) {
+        digitalWrite(PICKLE_30S_PIN, LOW);
+        state.pickle30UntilMs = 0;
+    }
+    if (state.pickle20UntilMs && now >= state.pickle20UntilMs) {
+        digitalWrite(PICKLE_20S_PIN, LOW);
+        state.pickle20UntilMs = 0;
+    }
+    if (state.pickleStartStopUntilMs && now >= state.pickleStartStopUntilMs) {
+        digitalWrite(PICKLE_START_STOP_PIN, LOW);
+        state.pickleStartStopUntilMs = 0;
     }
 
     // 10Hz Scoreboard Broadcast

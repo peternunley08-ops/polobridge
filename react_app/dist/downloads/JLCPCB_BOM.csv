@@ -1,0 +1,21 @@
+Comment,Designator,Footprint,LCSC Part #
+ESP32-S3-WROOM-1U-N8 (BLE 5.0 + U.FL External Antenna),U1,ESP32-S3-WROOM-1U,C2980297
+ADUM1201BRZ-RL7 (2.5kV Dual-Channel Digital Isolator),U2,SOIC-8_150mil,C87626
+MAX3232ESE+T (3V-5.5V True RS-232 Transceiver +-12V),U3,SOIC-16_150mil,C18261
+B0303S-1WR3 (Isolated 3.3V-to-3.3V 1W DC-DC Converter),U4,SIP-4_11.6x6.0mm,C5358212
+TP4056-42-ESOP8 (1A USB-C LiPo Battery Charger IC),U5,ESOP-8_150mil,C16581
+AMS1117-3.3 (3.3V 1A LDO Voltage Regulator),U6,SOT-223,C6186
+EL817S(C)(TU)-F (3-Ch Pickle Optocouplers: 30s / 20s / Start-Stop),"U7,U8,U9",SMD-4_P2.54mm,C5353
+AO3400A (30V 5.7A N-MOSFET for 105dB Piezo / Aux Horn Driver),Q1,SOT-23,C20917
+HRO TYPE-C-31-M-12 (16-Pin USB-C Receptacle),J5,USB-C-SMD_TYPE-C-31-M-12,C165948
+SMBJ15CA (Bidirectional 15V TVS ESD Surge Clamp),"D1,D2",DO-214AA_SMB,C19242
+SS34 (3A 40V Schottky Power Or-ing & Flyback Diode),"D3,D4",DO-214AB_SMC,C8678
+100nF 50V X7R 10% (Charge Pump & Decoupling Caps),"C1,C2,C3,C4,C5,C6,C7,C8",0603,C14663
+10uF 25V X5R 10% (Bulk Power Rail Capacitors),"C9,C10,C11,C12",0805,C15850
+5.1kOhm 1% (USB-C CC1/CC2 Pull-Down Resistors),"R1,R2",0603,C23186
+1kOhm 1% (3x Optocoupler + Horn Gate & Charge Resistors),"R3,R4,R9,R10,R11",0603,C21190
+10kOhm 1% (ESP32 EN & GPIO0 Pull-Up Resistors),"R5,R6",0603,C25804
+330Ohm 1% (Status LED Current Limiting Resistors),"R7,R8",0603,C23138
+Green/Emerald SMD Status LED (BLE / Power),"LED1,LED2",0603,C72043
+TS-1187A-B-A-B (2x Boot/Reset + 3x Fail-Safe Lid Switches: Start/30s/20s),"SW1,SW2,SW3,SW4,SW5",SW-SMD_5.1x5.1mm,C318884
+JST-PH 2-Pin SMD Header (LiPo Battery J4 + 105dB Piezo Horn J6),"J4,J6",JST-PH-2A-SMD,C131337

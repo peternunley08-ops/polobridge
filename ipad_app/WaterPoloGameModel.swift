@@ -14,6 +14,9 @@ struct StateSnapshot {
     let shotTimeMs: UInt32
     let gameTimeMs: UInt32
     let isRunning: Bool
+    let scoreWhite: Int
+    let scoreDark: Int
+    let activeExclusions: [Exclusion]
 }
 
 enum ScoreboardProtocol: UInt8 {
@@ -27,14 +30,27 @@ class WaterPoloGameModel: ObservableObject {
     @Published var shotTimeMs: UInt32 = 30 * 1000     // 30 seconds default
     @Published var scoreWhite: Int = 0
     @Published var scoreDark: Int = 0
-    @Published var period: Int = 1
+    @Published var period: Int = 1 // 1-4 = Q1-Q4, 5 = OT1, 6 = OT2, 7 = PSO
     @Published var activeExclusions: [Exclusion] = []
-    @Published var timeoutsRemainingWhite: Int = 3
-    @Published var timeoutsRemainingDark: Int = 3
+
+    // Ruleset Toggle: true = NCAA / World Aquatics (20s/30s), false = NFHS High School (30s only)
+    @Published var enable20sReset: Bool = true
+
+    // Rule WP 22.3: Personal Foul Tracking (3 fouls = Capped Out / Rolled)
+    @Published var personalFoulsWhite: [Int: Int] = [:]
+    @Published var personalFoulsDark: [Int: Int] = [:]
+
+    // Team Timeouts Engine (3 Full 60s + 1 Short 30s)
+    @Published var fullTimeoutsWhite: Int = 3
+    @Published var shortTimeoutsWhite: Int = 1
+    @Published var fullTimeoutsDark: Int = 3
+    @Published var shortTimeoutsDark: Int = 1
+    @Published var activeTimeoutRemainingMs: UInt32 = 0
+    @Published var activeTimeoutIsWhite: Bool = true
 
     @Published var currentProtocol: ScoreboardProtocol = .coloradoTimeSystems
 
-    // Rule WP 20.15: Computed blanking state when game time < shot time
+    // Rule WP 20.15: Computed blanking state when game time <= shot time
     var isShotClockBlanked: Bool {
         return gameTimeMs <= shotTimeMs
     }
@@ -80,7 +96,19 @@ class WaterPoloGameModel: ObservableObject {
 
     private func startLocalTick() {
         localTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-            guard let self = self, self.isRunning else { return }
+            guard let self = self else { return }
+
+            // Timeout countdown tick (with 15s remaining warning horn)
+            if self.activeTimeoutRemainingMs >= 100 {
+                self.activeTimeoutRemainingMs -= 100
+                if self.activeTimeoutRemainingMs == 15000 {
+                    self.bleManager?.sendTriggerHorn(durationMs: 600)
+                } else if self.activeTimeoutRemainingMs == 0 {
+                    self.bleManager?.sendTriggerHorn(durationMs: 1400)
+                }
+            }
+
+            guard self.isRunning else { return }
 
             if self.bleManager?.isConnected != true {
                 if self.gameTimeMs >= 100 {
@@ -88,21 +116,27 @@ class WaterPoloGameModel: ObservableObject {
                 } else {
                     self.gameTimeMs = 0
                     self.isRunning = false
+                    self.bleManager?.sendTriggerHorn(durationMs: 2000)
                 }
 
                 if self.shotTimeMs >= 100 {
                     self.shotTimeMs -= 100
                 } else {
+                    if self.gameTimeMs > 1000 {
+                        self.bleManager?.sendTriggerHorn(durationMs: 1200)
+                    }
                     self.shotTimeMs = 30 * 1000
                 }
             }
 
-            // Decrement active exclusions
-            for i in 0..<self.activeExclusions.count {
+            // Decrement active exclusions and remove expired penalties
+            for i in self.activeExclusions.indices.reversed() {
                 if self.activeExclusions[i].remainingSeconds > 0 {
                     if self.gameTimeMs % 1000 < 100 {
                         self.activeExclusions[i].remainingSeconds -= 1
                     }
+                } else {
+                    self.activeExclusions.remove(at: i)
                 }
             }
         }
@@ -112,6 +146,7 @@ class WaterPoloGameModel: ObservableObject {
 
     func toggleStartStop() {
         saveSnapshot()
+        activeTimeoutRemainingMs = 0
         isRunning.toggle()
         if isRunning {
             bleManager?.sendStart()
@@ -139,6 +174,9 @@ class WaterPoloGameModel: ObservableObject {
         shotTimeMs = last.shotTimeMs
         gameTimeMs = last.gameTimeMs
         isRunning = last.isRunning
+        scoreWhite = last.scoreWhite
+        scoreDark = last.scoreDark
+        activeExclusions = last.activeExclusions
 
         let sec = UInt8(shotTimeMs / 1000)
         let tenths = UInt8((shotTimeMs % 1000) / 100)
@@ -168,17 +206,70 @@ class WaterPoloGameModel: ObservableObject {
         bleManager?.sendTriggerHorn(durationMs: 1200)
     }
 
-    // MARK: - Official Rule WP 21: Exclusions & Early Releases
+    // MARK: - Team Timeouts (60s Full / 30s Short)
+
+    func callTimeout(isWhite: Bool, durationSeconds: Int) {
+        saveSnapshot()
+        isRunning = false
+        bleManager?.sendStop()
+        bleManager?.sendTriggerHorn(durationMs: 800)
+
+        if isWhite {
+            if durationSeconds == 60 && fullTimeoutsWhite > 0 {
+                fullTimeoutsWhite -= 1
+            } else if durationSeconds == 30 && shortTimeoutsWhite > 0 {
+                shortTimeoutsWhite -= 1
+            }
+        } else {
+            if durationSeconds == 60 && fullTimeoutsDark > 0 {
+                fullTimeoutsDark -= 1
+            } else if durationSeconds == 30 && shortTimeoutsDark > 0 {
+                shortTimeoutsDark -= 1
+            }
+        }
+
+        activeTimeoutIsWhite = isWhite
+        activeTimeoutRemainingMs = UInt32(durationSeconds * 1000)
+    }
+
+    func endTimeout() {
+        activeTimeoutRemainingMs = 0
+    }
+
+    // MARK: - Official Rule WP 21 & WP 22.3: Exclusions, Cap-Out & Early Releases
+
+    func foulCount(forCap capNumber: Int, isWhite: Bool) -> Int {
+        return isWhite ? (personalFoulsWhite[capNumber] ?? 0) : (personalFoulsDark[capNumber] ?? 0)
+    }
+
+    func isPlayerCappedOut(capNumber: Int, isWhite: Bool) -> Bool {
+        return foulCount(forCap: capNumber, isWhite: isWhite) >= 3
+    }
 
     func addExclusion(capNumber: Int, isWhite: Bool) {
+        guard !isPlayerCappedOut(capNumber: capNumber, isWhite: isWhite) else { return }
+        saveSnapshot()
         let exclusion = Exclusion(capNumber: capNumber, isWhiteTeam: isWhite, remainingSeconds: 20)
         activeExclusions.append(exclusion)
-        // Rule WP 20.16: Ejection resets shot clock to 20s
-        reset20()
+
+        if isWhite {
+            personalFoulsWhite[capNumber, default: 0] += 1
+        } else {
+            personalFoulsDark[capNumber, default: 0] += 1
+        }
+
+        if enable20sReset {
+            shotTimeMs = 20 * 1000
+            bleManager?.sendReset20()
+        } else {
+            shotTimeMs = 30 * 1000
+            bleManager?.sendReset30()
+        }
     }
 
     /// Official Rule WP 21: Early Release when a goal is scored or ball possession is regained
     func earlyReleaseExclusion(id: UUID) {
+        saveSnapshot()
         activeExclusions.removeAll { $0.id == id }
     }
 
@@ -189,26 +280,31 @@ class WaterPoloGameModel: ObservableObject {
     // MARK: - Scores & Automatic Goal Rules
 
     func updateScore(isWhite: Bool, delta: Int) {
+        saveSnapshot()
         if isWhite {
             scoreWhite = max(0, scoreWhite + delta)
             if delta > 0 {
                 // Rule WP 21: Goal scored releases defending team's excluded players
                 releaseAllExclusionsForTeam(isWhite: false)
-                reset30() // Fresh possession after goal
+                shotTimeMs = 30 * 1000
+                bleManager?.sendReset30()
             }
         } else {
             scoreDark = max(0, scoreDark + delta)
             if delta > 0 {
                 releaseAllExclusionsForTeam(isWhite: true)
-                reset30()
+                shotTimeMs = 30 * 1000
+                bleManager?.sendReset30()
             }
         }
         bleManager?.sendSetScores(white: UInt8(scoreWhite), dark: UInt8(scoreDark), period: UInt8(period))
     }
 
     func setPeriod(_ newPeriod: Int) {
+        saveSnapshot()
         period = newPeriod
-        gameTimeMs = 8 * 60 * 1000
+        // Periods 1-4 are 8:00 quarters; Periods 5-6 (OT1/OT2) are 3:00 overtime periods
+        gameTimeMs = (newPeriod >= 5) ? (3 * 60 * 1000) : (8 * 60 * 1000)
         shotTimeMs = 30 * 1000
         isRunning = false
         activeExclusions.removeAll()
@@ -218,13 +314,21 @@ class WaterPoloGameModel: ObservableObject {
 
     func setProtocol(_ mode: ScoreboardProtocol) {
         currentProtocol = mode
-        // Send command to dongle to switch UART parameters & packet formatter
-        bleManager?.sendPulsePickle(durationMs: mode.rawValue) // or custom command
+        bleManager?.sendPulsePickle(durationMs: mode.rawValue)
     }
 
     private func saveSnapshot() {
-        undoStack.append(StateSnapshot(shotTimeMs: shotTimeMs, gameTimeMs: gameTimeMs, isRunning: isRunning))
-        if undoStack.count > 10 {
+        undoStack.append(
+            StateSnapshot(
+                shotTimeMs: shotTimeMs,
+                gameTimeMs: gameTimeMs,
+                isRunning: isRunning,
+                scoreWhite: scoreWhite,
+                scoreDark: scoreDark,
+                activeExclusions: activeExclusions
+            )
+        )
+        if undoStack.count > 15 {
             undoStack.removeFirst()
         }
     }
@@ -234,9 +338,9 @@ class WaterPoloGameModel: ObservableObject {
         let sec = (gameTimeMs % 60000) / 1000
         let tenths = (gameTimeMs % 1000) / 100
         if min > 0 {
-            return String(format: "%02d:%02d", min, sec)
+            return String(format: "%02d:%02d.%01d", min, sec, tenths)
         } else {
-            return String(format: "%02d.%01d", sec, tenths)
+            return String(format: "00:%02d.%01d", sec, tenths)
         }
     }
 

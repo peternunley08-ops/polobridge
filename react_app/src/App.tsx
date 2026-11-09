@@ -1,12 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Play, Pause, RotateCcw, Volume2, Shield, Flag, Tv, 
   Radio, Settings, FileText, Check, Copy, ExternalLink, 
   Plus, Minus, AlertTriangle, Printer, Layers, Clock,
-  ArrowRight, Undo2, Award, Zap, Sparkles, Bluetooth, Trophy
+  ArrowRight, Undo2, Award, Zap, Sparkles, Bluetooth, Trophy,
+  Cpu, Rocket, Timer, Keyboard, Compass
 } from 'lucide-react';
 import MockupsGallery from './components/mockups-gallery';
 import SixEightPanel from './components/six-eight-panel';
+import HardwareBomPanel from './components/hardware-bom-panel';
+import LandingPage from './components/landing-page';
+import TournamentHubPanel from './components/tournament-hub-panel';
 import { bleManager, BleConnectionStatus } from './engine/bluetooth-manager';
 import {
   PRESET_68_MATCHES,
@@ -78,7 +82,7 @@ const sounds = new SoundEngine();
 
 // --- Types ---
 type Protocol = 'cts' | 'daktronics';
-type ActiveTab = 'console' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
+export type ActiveTab = 'console' | 'tournament' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
 
 interface Exclusion {
   id: string;
@@ -87,10 +91,28 @@ interface Exclusion {
   remaining: number;
 }
 
+interface ActiveTimeoutState {
+  team: 'white' | 'dark';
+  type: '60s' | '30s';
+  remainingMs: number;
+  warned15s: boolean;
+}
+
+interface ShootoutShot {
+  round: number;
+  whiteResult: 'pending' | 'goal' | 'miss';
+  darkResult: 'pending' | 'goal' | 'miss';
+  whiteCap: number;
+  darkCap: number;
+}
+
 interface ClockSnapshot {
   gameTimeMs: number;
   shotTimeMs: number;
   isRunning: boolean;
+  scoreWhite: number;
+  scoreDark: number;
+  exclusions: Exclusion[];
 }
 
 export default function App() {
@@ -107,23 +129,44 @@ export default function App() {
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [gameTimeMs, setGameTimeMs] = useState<number>(8 * 60 * 1000); // 8 minutes in ms
   const [shotTimeMs, setShotTimeMs] = useState<number>(30 * 1000);    // 30 seconds in ms
-  const [period, setPeriod] = useState<number>(1);
+  const [period, setPeriod] = useState<number>(1); // 1-4 = Q1-Q4, 5 = OT1, 6 = OT2, 7 = PSO
   const [isHornActive, setIsHornActive] = useState<boolean>(false);
 
   // Teams & Scores
-  const [teamWhiteName, setTeamWhiteName] = useState<string>('Stanford');
-  const [teamDarkName, setTeamDarkName] = useState<string>('USC');
+  const [teamWhiteName, setTeamWhiteName] = useState<string>('VANGUARD');
+  const [teamDarkName, setTeamDarkName] = useState<string>('STANFORD');
   const [scoreWhite, setScoreWhite] = useState<number>(11);
   const [scoreDark, setScoreDark] = useState<number>(9);
+  const [quarterScores, setQuarterScores] = useState<{ white: number[]; dark: number[] }>({
+    white: [3, 4, 2, 2, 0, 0, 0],
+    dark: [2, 2, 3, 2, 0, 0, 0],
+  });
   const [exclusions, setExclusions] = useState<Exclusion[]>([
     { id: '1', team: 'dark', cap: 4, remaining: 14 }
+  ]);
+
+  // Team Timeouts Engine (3 Full 60s + 1 Short 30s per team)
+  const [timeoutsWhite, setTimeoutsWhite] = useState<{ full: number; short: number }>({ full: 3, short: 1 });
+  const [timeoutsDark, setTimeoutsDark] = useState<{ full: number; short: number }>({ full: 3, short: 1 });
+  const [activeTimeout, setActiveTimeout] = useState<ActiveTimeoutState | null>(null);
+
+  // Penalty Shootout (PSO) 5-Round + Sudden Death Scorecard
+  const [shootoutRounds, setShootoutRounds] = useState<ShootoutShot[]>([
+    { round: 1, whiteResult: 'goal', darkResult: 'goal', whiteCap: 2, darkCap: 2 },
+    { round: 2, whiteResult: 'goal', darkResult: 'miss', whiteCap: 3, darkCap: 3 },
+    { round: 3, whiteResult: 'pending', darkResult: 'pending', whiteCap: 4, darkCap: 4 },
+    { round: 4, whiteResult: 'pending', darkResult: 'pending', whiteCap: 5, darkCap: 5 },
+    { round: 5, whiteResult: 'pending', darkResult: 'pending', whiteCap: 6, darkCap: 6 },
   ]);
 
   // Modal for quick cap ejection
   const [showCapModal, setShowCapModal] = useState<'white' | 'dark' | null>(null);
 
   // Ruleset: High School (NFHS 30s only) vs. College / International (NCAA / World Aquatics 20s reset)
-  const [enable20sReset, setEnable20sReset] = useState<boolean>(false); // High school 30s by default
+  const [enable20sReset, setEnable20sReset] = useState<boolean>(true); // Default to NCAA/World Aquatics 20s/30s
+
+  // Parent Volunteer UX: Simple 4-Button Shot-Clock Plunger Mode vs. Full Varsity Desk Mode
+  const [isSimpleVolunteerMode, setIsSimpleVolunteerMode] = useState<boolean>(false);
 
   // 6-8 Sports Live Integration State
   const [sixEightMode, setSixEightMode] = useState<SixEightSyncMode>('cloud_live');
@@ -132,7 +175,7 @@ export default function App() {
   const [darkRoster, setDarkRoster] = useState<SixEightPlayer[]>(PRESET_68_MATCHES[0].darkRoster);
   const [sixEightEvents, setSixEightEvents] = useState<SixEightGameEvent[]>([]);
 
-  // Undo History Stack
+  // Undo History Stack (15-state full snapshot)
   const [undoStack, setUndoStack] = useState<ClockSnapshot[]>([]);
 
   // Bus Monitor Log
@@ -175,51 +218,58 @@ export default function App() {
     }
   };
 
-  // Auto-save snapshot before changing clock
-  const pushSnapshot = () => {
-    setUndoStack(prev => [{ gameTimeMs, shotTimeMs, isRunning }, ...prev.slice(0, 9)]);
-  };
+  // Auto-save full match snapshot before changing clock, score, or exclusions
+  const pushSnapshot = useCallback(() => {
+    setUndoStack(prev => [
+      { gameTimeMs, shotTimeMs, isRunning, scoreWhite, scoreDark, exclusions: [...exclusions] },
+      ...prev.slice(0, 14)
+    ]);
+  }, [gameTimeMs, shotTimeMs, isRunning, scoreWhite, scoreDark, exclusions]);
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     sounds.playClick();
     if (undoStack.length === 0) return;
     const [last, ...rest] = undoStack;
     setGameTimeMs(last.gameTimeMs);
     setShotTimeMs(last.shotTimeMs);
     setIsRunning(last.isRunning);
+    setScoreWhite(last.scoreWhite);
+    setScoreDark(last.scoreDark);
+    setExclusions(last.exclusions);
     setUndoStack(rest);
     bleManager.sendGameClock(last.gameTimeMs);
     bleManager.sendShotClock(last.shotTimeMs);
     if (last.isRunning) bleManager.sendStart();
     else bleManager.sendStop();
-  };
+  }, [undoStack]);
 
   // Start / Stop Toggle
-  const toggleStartStop = () => {
+  const toggleStartStop = useCallback(() => {
     sounds.playClick();
     pushSnapshot();
+    setActiveTimeout(null);
     setIsRunning(prev => {
       const next = !prev;
       if (next) bleManager.sendStart();
       else bleManager.sendStop();
       return next;
     });
-  };
+  }, [pushSnapshot]);
 
   // Shot Resets
-  const reset30 = () => {
+  const reset30 = useCallback(() => {
     sounds.playClick();
     pushSnapshot();
     setShotTimeMs(30 * 1000);
     bleManager.sendReset30();
-  };
+  }, [pushSnapshot]);
 
-  const reset20 = () => {
+  const reset20 = useCallback(() => {
     sounds.playClick();
     pushSnapshot();
     setShotTimeMs(20 * 1000);
     bleManager.sendReset20();
-  };
+  }, [pushSnapshot]);
 
   const adjustShot = (delta: number) => {
     sounds.playClick();
@@ -231,19 +281,63 @@ export default function App() {
     });
   };
 
-  const fireHornManual = (dur = 1200) => {
+  const fireHornManual = useCallback((dur = 1200) => {
     sounds.playHorn(dur);
     setIsHornActive(true);
     bleManager.sendHorn(dur);
     setTimeout(() => setIsHornActive(false), dur);
-  };
+  }, []);
+
+  // Keyboard / USB Pedal Hotkeys for Poolside Operators
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        toggleStartStop();
+      } else if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        reset30();
+      } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        reset20();
+      } else if (e.key === 'h' || e.key === 'H') {
+        e.preventDefault();
+        fireHornManual(1200);
+      } else if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [toggleStartStop, reset30, reset20, fireHornManual, handleUndo]);
 
   // Rule WP 20.15: Automatic Shot Clock Blanking
   const isBlanked = gameTimeMs <= shotTimeMs;
 
-  // Clock Ticker Engine (10Hz / 100ms)
+  // Clock Ticker Engine (10Hz / 100ms) + Timeout Countdown Engine
   useEffect(() => {
     const timer = setInterval(() => {
+      // Active Team Timeout Countdown (60s or 30s)
+      if (activeTimeout) {
+        setActiveTimeout(prev => {
+          if (!prev) return null;
+          const nextMs = prev.remainingMs - 100;
+          // 15 seconds remaining warning horn (45s elapsed on 60s timeout)
+          if (prev.type === '60s' && !prev.warned15s && nextMs <= 15000 && nextMs > 14000) {
+            fireHornManual(600);
+            return { ...prev, remainingMs: nextMs, warned15s: true };
+          }
+          if (nextMs <= 0) {
+            fireHornManual(1500);
+            return null;
+          }
+          return { ...prev, remainingMs: nextMs };
+        });
+      }
+
       if (isRunning) {
         // Game Clock
         setGameTimeMs(g => {
@@ -255,30 +349,33 @@ export default function App() {
           return g - 100;
         });
 
-        // Shot Clock
+        // Shot Clock (Official Rule: Stops BOTH Game & Shot Clocks at 0.0s with 1500ms violation horn!)
         setShotTimeMs(s => {
           if (s <= 100) {
-            // Shot clock expired
-            if (gameTimeMs > 1000) {
-              fireHornManual(1200);
+            if (gameTimeMs > 100) {
+              setIsRunning(false);
+              bleManager.sendStop();
+              fireHornManual(1500);
             }
-            return 30 * 1000;
+            return 0;
           }
           return s - 100;
         });
 
-        // Exclusions
+        // Exclusions (auto-remove when expired after flashing 0s)
         setExclusions(prev => 
-          prev.map(e => ({
-            ...e,
-            remaining: Math.max(0, e.remaining - 0.1)
-          }))
+          prev
+            .map(e => ({
+              ...e,
+              remaining: Math.max(0, e.remaining - 0.1)
+            }))
+            .filter(e => e.remaining > 0.05)
         );
       }
     }, 100);
 
     return () => clearInterval(timer);
-  }, [isRunning, gameTimeMs]);
+  }, [isRunning, gameTimeMs, activeTimeout, fireHornManual]);
 
   // Serial Bus Frame Logger (10Hz Emulation)
   useEffect(() => {
@@ -327,7 +424,14 @@ export default function App() {
   const shotTenths = Math.floor((shotTimeMs % 1000) / 100);
   const shotDisplay = isBlanked ? '--' : (shotSec >= 10 ? `${shotSec}` : `${shotSec}.${shotTenths}`);
 
-  // Ejections early release
+  const periodLabel = (p: number) => {
+    if (p <= 4) return `Q${p}`;
+    if (p === 5) return 'OT1';
+    if (p === 6) return 'OT2';
+    return 'PSO';
+  };
+
+  // 6-8 Sports Telemetry Dispatcher
   const logSixEightEvent = (
     type: SixEightEventType,
     description: string,
@@ -357,6 +461,88 @@ export default function App() {
     sixEightClient.dispatchEvent(newEvt, active68Match.gameId, sixEightMode);
   };
 
+  // Select Period (Q1-Q4 = 8:00, OT1/OT2 = 3:00, PSO = Shootout)
+  const handleSelectPeriod = (p: number) => {
+    sounds.playClick();
+    pushSnapshot();
+    setPeriod(p);
+    setIsRunning(false);
+    bleManager.sendStop();
+    if (p <= 4) {
+      setGameTimeMs(8 * 60 * 1000);
+      setShotTimeMs(30 * 1000);
+    } else if (p === 5 || p === 6) {
+      setGameTimeMs(3 * 60 * 1000);
+      setShotTimeMs(30 * 1000);
+    }
+    logSixEightEvent('PERIOD_CHANGE', `Period switched to ${periodLabel(p)}`);
+  };
+
+  // Call Team Timeout (60s Full or 30s Short)
+  const handleCallTimeout = (team: 'white' | 'dark', type: '60s' | '30s') => {
+    sounds.playClick();
+    pushSnapshot();
+    setIsRunning(false);
+    bleManager.sendStop();
+    fireHornManual(800);
+
+    if (team === 'white') {
+      setTimeoutsWhite(prev => ({
+        full: type === '60s' ? Math.max(0, prev.full - 1) : prev.full,
+        short: type === '30s' ? Math.max(0, prev.short - 1) : prev.short,
+      }));
+    } else {
+      setTimeoutsDark(prev => ({
+        full: type === '60s' ? Math.max(0, prev.full - 1) : prev.full,
+        short: type === '30s' ? Math.max(0, prev.short - 1) : prev.short,
+      }));
+    }
+
+    const durMs = type === '60s' ? 60 * 1000 : 30 * 1000;
+    setActiveTimeout({ team, type, remainingMs: durMs, warned15s: false });
+    const tName = team === 'white' ? teamWhiteName : teamDarkName;
+    logSixEightEvent('MATCH_SYNC', `${type} Team Timeout called by ${tName}`, team);
+  };
+
+  // Rule WP 21: Score Update with Automatic Defending Exclusion Release
+  const handleScoreDelta = (team: 'white' | 'dark', delta: number) => {
+    sounds.playClick();
+    pushSnapshot();
+    const pIdx = Math.min(6, Math.max(0, period - 1));
+
+    if (team === 'white') {
+      const nextScore = Math.max(0, scoreWhite + delta);
+      setScoreWhite(nextScore);
+      setQuarterScores(prev => {
+        const nextW = [...prev.white];
+        nextW[pIdx] = Math.max(0, (nextW[pIdx] || 0) + delta);
+        return { ...prev, white: nextW };
+      });
+      if (delta > 0) {
+        // Rule WP 21: Goal scored releases defending (Dark) team's excluded players
+        setExclusions(prev => prev.filter(e => e.team !== 'dark'));
+        setShotTimeMs(30 * 1000);
+        bleManager.sendReset30();
+        logSixEightEvent('GOAL', `GOAL by ${teamWhiteName} (Defending Dark penalties auto-released per Rule WP 21)`, 'white', undefined, undefined, nextScore, scoreDark);
+      }
+    } else {
+      const nextScore = Math.max(0, scoreDark + delta);
+      setScoreDark(nextScore);
+      setQuarterScores(prev => {
+        const nextD = [...prev.dark];
+        nextD[pIdx] = Math.max(0, (nextD[pIdx] || 0) + delta);
+        return { ...prev, dark: nextD };
+      });
+      if (delta > 0) {
+        // Rule WP 21: Goal scored releases defending (White) team's excluded players
+        setExclusions(prev => prev.filter(e => e.team !== 'white'));
+        setShotTimeMs(30 * 1000);
+        bleManager.sendReset30();
+        logSixEightEvent('GOAL', `GOAL by ${teamDarkName} (Defending White penalties auto-released per Rule WP 21)`, 'dark', undefined, undefined, scoreWhite, nextScore);
+      }
+    }
+  };
+
   const handleSelect68Match = (preset: SixEightMatchPreset) => {
     sounds.playClick();
     setActive68Match(preset);
@@ -381,26 +567,44 @@ export default function App() {
 
   const handleRecord68Goal = (team: 'white' | 'dark', cap: number) => {
     sounds.playClick();
+    pushSnapshot();
+    const pIdx = Math.min(6, Math.max(0, period - 1));
     const roster = team === 'white' ? whiteRoster : darkRoster;
     const player = roster.find(p => p.cap === cap);
     const pName = player ? player.name : `Cap #${cap}`;
+
     if (team === 'white') {
       const nextScore = scoreWhite + 1;
       setScoreWhite(nextScore);
+      setQuarterScores(prev => {
+        const nextW = [...prev.white];
+        nextW[pIdx] = (nextW[pIdx] || 0) + 1;
+        return { ...prev, white: nextW };
+      });
       setWhiteRoster(prev => prev.map(p => (p.cap === cap ? { ...p, goals: p.goals + 1 } : p)));
-      reset30();
+      setExclusions(prev => prev.filter(e => e.team !== 'dark'));
+      setShotTimeMs(30 * 1000);
+      bleManager.sendReset30();
       logSixEightEvent('GOAL', `GOAL by ${teamWhiteName} #${cap} ${pName}`, 'white', cap, pName, nextScore, scoreDark);
     } else {
       const nextScore = scoreDark + 1;
       setScoreDark(nextScore);
+      setQuarterScores(prev => {
+        const nextD = [...prev.dark];
+        nextD[pIdx] = (nextD[pIdx] || 0) + 1;
+        return { ...prev, dark: nextD };
+      });
       setDarkRoster(prev => prev.map(p => (p.cap === cap ? { ...p, goals: p.goals + 1 } : p)));
-      reset30();
+      setExclusions(prev => prev.filter(e => e.team !== 'white'));
+      setShotTimeMs(30 * 1000);
+      bleManager.sendReset30();
       logSixEightEvent('GOAL', `GOAL by ${teamDarkName} #${cap} ${pName}`, 'dark', cap, pName, scoreWhite, nextScore);
     }
   };
 
   const releaseExclusion = (id: string) => {
     sounds.playClick();
+    pushSnapshot();
     const target = exclusions.find(e => e.id === id);
     setExclusions(prev => prev.filter(e => e.id !== id));
     if (target) {
@@ -410,17 +614,25 @@ export default function App() {
   };
 
   const addExclusion = (team: 'white' | 'dark', cap: number) => {
+    const roster = team === 'white' ? whiteRoster : darkRoster;
+    const player = roster.find(p => p.cap === cap);
+    if (player && player.exclusions >= 3) {
+      // Rule WP 22.3: Player already has 3 personal fouls (Capped Out)
+      return;
+    }
+
     sounds.playClick();
+    pushSnapshot();
     setExclusions(prev => [...prev, { id: Date.now().toString(), team, cap, remaining: 20 }]);
     setShowCapModal(null);
     if (enable20sReset) {
-      reset20(); // Automatic reset to 20s upon exclusion (NCAA / World Aquatics)
+      setShotTimeMs(20 * 1000);
+      bleManager.sendReset20();
     } else {
-      reset30(); // NFHS High School: 30s reset on exclusion
+      setShotTimeMs(30 * 1000);
+      bleManager.sendReset30();
     }
 
-    const roster = team === 'white' ? whiteRoster : darkRoster;
-    const player = roster.find(p => p.cap === cap);
     const pName = player ? player.name : `Cap #${cap}`;
     const newFoulCount = (player ? player.exclusions : 0) + 1;
     const tName = team === 'white' ? teamWhiteName : teamDarkName;
@@ -440,19 +652,46 @@ export default function App() {
     );
   };
 
+  // Toggle Penalty Shootout Shot Result
+  const handleToggleShootoutShot = (roundIdx: number, team: 'white' | 'dark') => {
+    sounds.playClick();
+    const cycle: Record<'pending' | 'goal' | 'miss', 'pending' | 'goal' | 'miss'> = {
+      pending: 'goal',
+      goal: 'miss',
+      miss: 'pending',
+    };
+    setShootoutRounds(prev =>
+      prev.map((r, i) => {
+        if (i !== roundIdx) return r;
+        const current = team === 'white' ? r.whiteResult : r.darkResult;
+        const next = cycle[current];
+        if (current !== 'goal' && next === 'goal') {
+          handleScoreDelta(team, 1);
+        } else if (current === 'goal' && next !== 'goal') {
+          handleScoreDelta(team, -1);
+        }
+        return team === 'white' ? { ...r, whiteResult: next } : { ...r, darkResult: next };
+      })
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-900 via-blue-900 to-indigo-950 text-white flex flex-col font-sans selection:bg-cyan-400/30 selection:text-cyan-200">
       
       {/* ======================================================== */}
       {/* 1. PROFESSIONAL AQUATIC MASTHEAD HEADER                  */}
       {/* ======================================================== */}
-      <header className="h-14 border-b border-cyan-400/30 bg-gradient-to-r from-sky-900/95 via-blue-900/95 to-indigo-900/95 backdrop-blur-xl px-6 flex items-center justify-between sticky top-0 z-50 shadow-[0_4px_25px_rgba(6,182,212,0.2)]">
+      <header className="min-h-14 border-b border-cyan-400/30 bg-gradient-to-r from-sky-900/95 via-blue-900/95 to-indigo-900/95 backdrop-blur-xl px-4 py-2 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-50 shadow-[0_4px_25px_rgba(6,182,212,0.2)] print:hidden">
         
         {/* Brand & Connection Status */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-300 to-amber-300 flex items-center justify-center font-black text-sm text-sky-950 shadow-lg shadow-cyan-400/30">
+          <button
+            onClick={() => { sounds.playClick(); setActiveTab('landing'); }}
+            className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 via-teal-300 to-amber-300 flex items-center justify-center font-black text-sm text-sky-950 shadow-lg shadow-cyan-400/30 cursor-pointer"
+            title="View PoloBridge Product Landing Page"
+          >
             🤽
-          </div>
+          </button>
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-extrabold tracking-tight text-white drop-shadow-sm">PoloPad Pro</span>
@@ -481,7 +720,7 @@ export default function App() {
               <button
                 onClick={() => { sounds.playClick(); setActiveTab('sixeight'); }}
                 title="Open 6-8 Sports Live Game Desk & Roster Sync"
-                className={`flex items-center gap-1.5 text-[10px] px-2.5 py-0.5 rounded-full border font-mono font-bold transition cursor-pointer ${
+                className={`hidden sm:flex items-center gap-1.5 text-[10px] px-2.5 py-0.5 rounded-full border font-mono font-bold transition cursor-pointer ${
                   sixEightMode !== 'disconnected'
                     ? 'bg-amber-400/20 hover:bg-amber-400/30 text-amber-200 border-amber-300/50 shadow-[0_0_12px_rgba(251,191,36,0.25)]'
                     : 'bg-sky-800/50 hover:bg-sky-700/60 text-sky-200 border-cyan-400/30'
@@ -490,8 +729,8 @@ export default function App() {
                 <span className={`w-1.5 h-1.5 rounded-full ${sixEightMode !== 'disconnected' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
                 <span>
                   {sixEightMode !== 'disconnected'
-                    ? `6-8 SPORTS: ${active68Match.gameId}`
-                    : 'CONNECT 6-8 SPORTS'}
+                    ? `6-8: ${active68Match.gameId}`
+                    : 'CONNECT 6-8'}
                 </span>
               </button>
             </div>
@@ -499,21 +738,24 @@ export default function App() {
               {bleError ? (
                 <span className="text-amber-300">{bleError}</span>
               ) : (
-                <span>{enable20sReset ? 'NCAA / World Aquatics (20s Reset Enabled)' : 'NFHS High School (30s Resets Only)'} &bull; 6-8 Game Desk Linked</span>
+                <span>{enable20sReset ? 'NCAA / World Aquatics (20s/30s)' : 'NFHS High School (30s Only)'} &bull; iOS &amp; BLE Ready</span>
               )}
             </div>
           </div>
         </div>
 
-        {/* View Switchers (Console, 6-8 Sports, Mockups, OBS Overlay, Hardware Rack, Scoresheet) */}
-        <div className="flex items-center gap-1 bg-sky-950/70 p-1 rounded-xl border border-cyan-400/30 shadow-inner">
+        {/* View Switchers (Console, Landing Page, BOM Parts, 6-8 Sports, Mockups, OBS Overlay, Hardware Rack, Scoresheet) */}
+        <div className="flex items-center gap-1 bg-sky-950/70 p-1 rounded-xl border border-cyan-400/30 shadow-inner overflow-x-auto">
           {[
-            { id: 'console', label: 'Operator Console', icon: Layers },
+            { id: 'console', label: 'Console', icon: Layers },
+            { id: 'tournament', label: 'Auto-Finder & Hub', icon: Compass },
+            { id: 'landing', label: 'Product & ROI', icon: Rocket },
+            { id: 'bom', label: 'Order BOM ($49)', icon: Cpu },
             { id: 'sixeight', label: '6-8 Sports', icon: Trophy },
-            { id: 'mockups', label: 'Product Mockups', icon: Sparkles },
-            { id: 'overlay', label: 'OBS Scorebug', icon: Tv },
-            { id: 'rack', label: 'Deck Hardware (LED)', icon: Radio },
-            { id: 'scoresheet', label: 'Official Sheet', icon: FileText },
+            { id: 'mockups', label: 'Mockups & PCB', icon: Sparkles },
+            { id: 'overlay', label: 'Scorebug', icon: Tv },
+            { id: 'rack', label: 'LED / RS-232', icon: Radio },
+            { id: 'scoresheet', label: 'Scoresheet', icon: FileText },
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -521,7 +763,7 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => { sounds.playClick(); setActiveTab(tab.id as ActiveTab); }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                   isActive 
                     ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/30 border border-cyan-300/40' 
                     : 'text-sky-200/80 hover:text-white hover:bg-cyan-400/15'
@@ -535,21 +777,21 @@ export default function App() {
         </div>
 
         {/* Ruleset & Protocol Selectors & Global Horn */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* Ruleset Mode Selector */}
-          <div className="flex items-center bg-sky-950/70 p-0.5 rounded-lg border border-cyan-400/30 text-xs">
+          <div className="hidden xl:flex items-center bg-sky-950/70 p-0.5 rounded-lg border border-cyan-400/30 text-xs">
             <button
               onClick={() => { sounds.playClick(); setEnable20sReset(false); }}
-              className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold transition ${
+              className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold transition cursor-pointer ${
                 !enable20sReset ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 shadow-sm' : 'text-sky-300/60 hover:text-sky-100'
               }`}
-              title="NFHS High School Mode: All shot clock resets are 30 seconds (no 20s reset)"
+              title="NFHS High School Mode: All shot clock resets are 30 seconds"
             >
               HS (30s)
             </button>
             <button
               onClick={() => { sounds.playClick(); setEnable20sReset(true); }}
-              className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold transition ${
+              className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold transition cursor-pointer ${
                 enable20sReset ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40 shadow-sm' : 'text-sky-300/60 hover:text-sky-100'
               }`}
               title="NCAA / World Aquatics Mode: 20s reset on rebound and exclusion"
@@ -562,25 +804,25 @@ export default function App() {
           <div className="flex items-center bg-sky-950/70 p-0.5 rounded-lg border border-cyan-400/30 text-xs">
             <button
               onClick={() => { sounds.playClick(); setProtocol('cts'); bleManager.sendProtocol('cts'); }}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition ${
+              className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold transition cursor-pointer ${
                 protocol === 'cts' ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400/40' : 'text-sky-300/60 hover:text-sky-100'
               }`}
             >
-              CTS 9600-8-E-1
+              CTS 9600
             </button>
             <button
               onClick={() => { sounds.playClick(); setProtocol('daktronics'); bleManager.sendProtocol('daktronics'); }}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-mono font-bold transition ${
+              className={`px-2 py-1 rounded-md text-[10px] font-mono font-bold transition cursor-pointer ${
                 protocol === 'daktronics' ? 'bg-amber-500/30 text-amber-200 border border-amber-400/40' : 'text-sky-300/60 hover:text-sky-100'
               }`}
             >
-              DAKT CODE 4498
+              DAKT 4498
             </button>
           </div>
 
           <button
             onMouseDown={() => fireHornManual(1400)}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition shadow-lg ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition shadow-lg cursor-pointer ${
               isHornActive
                 ? 'bg-rose-500 text-white shadow-rose-500/50 scale-95 ring-2 ring-amber-300'
                 : 'bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 text-white shadow-rose-600/30 border border-rose-300/30'
@@ -599,25 +841,169 @@ export default function App() {
         
         {/* VIEW A: DUAL-THUMB HANDHELD CONSOLE */}
         {activeTab === 'console' && (
-          <div className="flex-1 p-6 flex items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/30 via-sky-800/90 to-blue-950 overflow-y-auto">
+          <div className="flex-1 p-4 sm:p-6 flex items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/30 via-sky-800/90 to-blue-950 overflow-y-auto">
             
             {/* Handheld iPad Chassis — Vibrant Anodized Marine Sapphire */}
-            <div className="w-full max-w-6xl rounded-[36px] bg-gradient-to-b from-sky-800/90 via-blue-900/95 to-indigo-950/95 border-2 border-cyan-400/50 p-6 shadow-[0_24px_70px_rgba(6,182,212,0.3)] backdrop-blur-xl flex flex-col gap-5">
+            <div className="w-full max-w-6xl rounded-[36px] bg-gradient-to-b from-sky-800/90 via-blue-900/95 to-indigo-950/95 border-2 border-cyan-400/50 p-5 sm:p-6 shadow-[0_24px_70px_rgba(6,182,212,0.3)] backdrop-blur-xl flex flex-col gap-4">
               
+              {/* Active Team Timeout Banner (if a 60s or 30s timeout is running) */}
+              {activeTimeout && (
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/30 via-orange-500/35 to-rose-500/30 border-2 border-amber-300 flex items-center justify-between shadow-lg animate-pulse">
+                  <div className="flex items-center gap-3">
+                    <Timer size={22} className="text-amber-300" />
+                    <div>
+                      <div className="text-xs font-mono font-black uppercase text-amber-200">
+                        ACTIVE {activeTimeout.type} TEAM TIMEOUT &bull; {activeTimeout.team === 'white' ? teamWhiteName : teamDarkName}
+                      </div>
+                      <div className="text-[11px] text-cyan-100">
+                        Warning horn fires automatically at 15.0s remaining (Rule WP 20).
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-3xl font-black font-mono text-white tabular-nums">
+                      {(activeTimeout.remainingMs / 1000).toFixed(1)}s
+                    </span>
+                    <button
+                      onClick={() => { sounds.playClick(); setActiveTimeout(null); }}
+                      className="px-3.5 py-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-sky-950 font-mono font-black text-xs cursor-pointer shadow"
+                    >
+                      END TIMEOUT
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Operator Complexity Switcher: Simple Volunteer Plunger Mode vs. Full Varsity Desk Mode */}
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-sky-950/80 border border-cyan-400/35 rounded-2xl px-4 py-2.5">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-400/20 border border-emerald-400/40 text-emerald-300 font-mono font-bold">
+                    REV 2.5 DUAL-TX + 3-CH PICKLE + 105dB HORN
+                  </span>
+                  <span className="text-cyan-200/80 hidden sm:inline">
+                    {isSimpleVolunteerMode
+                      ? 'Parent Volunteer Mode: 4 Giant Mistake-Proof Plungers (80% Screen)'
+                      : 'Full Varsity Desk Mode: Clocks, Scores, Cap Exclusions, Timeouts & PSO'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-sky-900/80 p-1 rounded-xl border border-cyan-400/30">
+                  <button
+                    onClick={() => { sounds.playClick(); setIsSimpleVolunteerMode(false); }}
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                      !isSimpleVolunteerMode
+                        ? 'bg-cyan-400 text-sky-950 shadow'
+                        : 'text-cyan-200 hover:text-white'
+                    }`}
+                  >
+                    Full Varsity Desk
+                  </button>
+                  <button
+                    onClick={() => { sounds.playClick(); setIsSimpleVolunteerMode(true); }}
+                    className={`px-3 py-1 rounded-lg text-xs font-black transition cursor-pointer ${
+                      isSimpleVolunteerMode
+                        ? 'bg-amber-400 text-sky-950 shadow'
+                        : 'text-amber-200 hover:text-white'
+                    }`}
+                  >
+                    Simple Shot-Clock Plunger Mode
+                  </button>
+                </div>
+              </div>
+
+              {isSimpleVolunteerMode ? (
+                <div className="space-y-4">
+                  {/* Giant Readout Strip */}
+                  <div className="grid grid-cols-2 gap-4 bg-sky-950/90 border-2 border-cyan-400/40 rounded-3xl p-5 text-center">
+                    <div>
+                      <div className="text-xs font-mono font-bold text-cyan-300 uppercase">
+                        GAME CLOCK ({periodLabel(period)})
+                      </div>
+                      <div className="text-5xl sm:text-6xl font-black font-mono text-amber-300 tabular-nums mt-1">
+                        {formatMinSecTenths(gameTimeMs)}
+                      </div>
+                    </div>
+                    <div className="border-l border-cyan-400/30">
+                      <div className="text-xs font-mono font-bold text-rose-300 uppercase">
+                        SHOT CLOCK {isBlanked ? '(WP 20.15 BLANKED)' : ''}
+                      </div>
+                      <div className="text-5xl sm:text-6xl font-black font-mono text-rose-400 tabular-nums mt-1">
+                        {shotDisplay}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4 Giant Impossible-to-Miss Tactile Plungers (80% Viewport) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-h-[360px]">
+                    <button
+                      onClick={toggleStartStop}
+                      className={`rounded-3xl p-6 flex flex-col items-center justify-center gap-2 border-t-2 border-white/50 shadow-2xl cursor-pointer transition ${
+                        isRunning
+                          ? 'bg-gradient-to-b from-rose-500 to-red-700 shadow-[0_10px_0_#881337] active:translate-y-2'
+                          : 'bg-gradient-to-b from-emerald-400 to-emerald-600 shadow-[0_10px_0_#065f46] active:translate-y-2'
+                      }`}
+                    >
+                      <span className="text-3xl sm:text-4xl font-black font-mono text-white">
+                        {isRunning ? '⏸ PAUSE CLOCKS' : '▶ START CLOCKS'}
+                      </span>
+                      <span className="text-xs font-mono text-white/90 uppercase">
+                        Whistle Stop / Ball In Play [SPACE]
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={reset30}
+                      className="rounded-3xl p-6 flex flex-col items-center justify-center gap-2 border-t-2 border-white/50 bg-gradient-to-b from-teal-400 to-emerald-600 text-sky-950 shadow-[0_10px_0_#115e59] active:translate-y-2 cursor-pointer transition"
+                    >
+                      <span className="text-3xl sm:text-4xl font-black font-mono">
+                        30s FULL RESET
+                      </span>
+                      <span className="text-xs font-mono font-bold uppercase">
+                        Turnover / New Possession / Goal [R]
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={reset20}
+                      className="rounded-3xl p-6 flex flex-col items-center justify-center gap-2 border-t-2 border-white/50 bg-gradient-to-b from-amber-300 to-amber-500 text-sky-950 shadow-[0_10px_0_#92400e] active:translate-y-2 cursor-pointer transition"
+                    >
+                      <span className="text-3xl sm:text-4xl font-black font-mono">
+                        20s REBOUND / EXCL
+                      </span>
+                      <span className="text-xs font-mono font-bold uppercase">
+                        Corner Throw / Exclusion / Off. Rebound [E]
+                      </span>
+                    </button>
+
+                    <button
+                      onClick={handleUndo}
+                      disabled={undoStack.length === 0}
+                      className="rounded-3xl p-6 flex flex-col items-center justify-center gap-2 border-t-2 border-cyan-300/50 bg-gradient-to-b from-sky-700 to-indigo-900 text-white shadow-[0_10px_0_#1e1b4b] active:translate-y-2 disabled:opacity-40 cursor-pointer transition"
+                    >
+                      <span className="text-3xl sm:text-4xl font-black font-mono">
+                        ↶ UNDO MISTAKE ({undoStack.length})
+                      </span>
+                      <span className="text-xs font-mono text-cyan-200 uppercase">
+                        Instantly Restore Previous Clock &amp; State [Z]
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
               {/* Three-Column Thumb Layout */}
-              <div className="grid grid-cols-[180px_1fr_180px] gap-6 min-h-[520px]">
+              <div className={isSimpleVolunteerMode ? 'hidden' : 'grid grid-cols-1 lg:grid-cols-[180px_1fr_180px] gap-5 min-h-[520px]'}>
                 
                 {/* -------------------------------------------------- */}
                 {/* 1. LEFT THUMB PILLAR: GIANT 3D START / STOP PLUNGER */}
                 {/* -------------------------------------------------- */}
                 <div className="flex flex-col gap-2">
                   <div className="text-[10px] font-mono font-black tracking-widest text-cyan-200 flex items-center justify-center gap-1 uppercase">
-                    <span>👈</span> Left Thumb
+                    <span>👈</span> Left Thumb (Space)
                   </div>
 
                   <button
                     onClick={toggleStartStop}
-                    className={`flex-1 w-full rounded-3xl p-5 flex flex-col items-center justify-between transition-all duration-100 select-none relative group border-t-2 border-white/50 shadow-2xl ${
+                    className={`flex-1 min-h-[160px] w-full rounded-3xl p-5 flex flex-col items-center justify-between transition-all duration-100 select-none relative group border-t-2 border-white/50 shadow-2xl cursor-pointer ${
                       isRunning
                         ? 'bg-gradient-to-b from-rose-500 via-red-500 to-red-700 shadow-[0_12px_0_#881337,0_20px_35px_rgba(244,63,94,0.45)] active:translate-y-2 active:shadow-[0_4px_0_#881337]'
                         : 'bg-gradient-to-b from-emerald-400 via-teal-500 to-emerald-600 shadow-[0_12px_0_#065f46,0_20px_35px_rgba(16,185,129,0.45)] active:translate-y-2 active:shadow-[0_4px_0_#065f46]'
@@ -657,21 +1043,21 @@ export default function App() {
                 {/* -------------------------------------------------- */}
                 <div className="flex flex-col gap-4">
                   
-                  {/* Top Bar: Period Selector & WP 20.15 Status */}
-                  <div className="flex items-center justify-between bg-sky-950/75 p-2 rounded-2xl border border-cyan-400/30 shadow-inner">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-mono font-bold text-cyan-200 px-2 uppercase">Period:</span>
-                      {[1, 2, 3, 4, 5].map(p => (
+                  {/* Top Bar: Period Selector (Q1-Q4, OT1, OT2, PSO) & WP 20.15 Status */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 bg-sky-950/75 p-2 rounded-2xl border border-cyan-400/30 shadow-inner">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="text-[10px] font-mono font-bold text-cyan-200 px-1.5 uppercase">Period:</span>
+                      {[1, 2, 3, 4, 5, 6, 7].map(p => (
                         <button
                           key={p}
-                          onClick={() => { sounds.playClick(); setPeriod(p); }}
-                          className={`px-3 py-1 rounded-lg text-xs font-mono font-black transition ${
+                          onClick={() => handleSelectPeriod(p)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-mono font-black transition cursor-pointer ${
                             period === p 
                               ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-sky-950 shadow-md shadow-cyan-400/30' 
                               : 'bg-sky-900/60 text-sky-200 hover:bg-sky-800 hover:text-white border border-cyan-400/20'
                           }`}
                         >
-                          {p === 5 ? 'OT' : `Q${p}`}
+                          {periodLabel(p)}
                         </button>
                       ))}
                     </div>
@@ -687,13 +1073,72 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* PENALTY SHOOTOUT (PSO) INTERACTIVE 5-ROUND SCORECARD WHEN PERIOD === 7 */}
+                  {period === 7 && (
+                    <div className="rounded-2xl p-4 bg-gradient-to-r from-sky-950/95 via-indigo-950/95 to-sky-950/95 border-2 border-amber-400/50 space-y-3 shadow-xl">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-mono font-black text-amber-300 uppercase tracking-wider">
+                          🥅 Rule WP 24: Alternating 5-Round Penalty Shootout (PSO)
+                        </span>
+                        <button
+                          onClick={() =>
+                            setShootoutRounds(prev => [
+                              ...prev,
+                              {
+                                round: prev.length + 1,
+                                whiteResult: 'pending',
+                                darkResult: 'pending',
+                                whiteCap: 1,
+                                darkCap: 1,
+                              },
+                            ])
+                          }
+                          className="px-2.5 py-1 rounded-lg bg-amber-400/20 hover:bg-amber-400/35 border border-amber-300/40 text-amber-200 font-mono font-bold text-[10px] cursor-pointer"
+                        >
+                          + Sudden Death Round
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-5 gap-2">
+                        {shootoutRounds.map((r, idx) => (
+                          <div key={r.round} className="p-2 rounded-xl bg-sky-900/70 border border-cyan-400/30 text-center space-y-1.5 font-mono text-xs">
+                            <div className="text-[10px] text-cyan-200 font-bold">R{r.round}</div>
+                            <button
+                              onClick={() => handleToggleShootoutShot(idx, 'white')}
+                              className={`w-full py-1 rounded font-black text-[10px] cursor-pointer ${
+                                r.whiteResult === 'goal'
+                                  ? 'bg-emerald-500 text-sky-950'
+                                  : r.whiteResult === 'miss'
+                                  ? 'bg-rose-500 text-white'
+                                  : 'bg-sky-950 text-sky-300 border border-white/20'
+                              }`}
+                            >
+                              W: {r.whiteResult.toUpperCase()}
+                            </button>
+                            <button
+                              onClick={() => handleToggleShootoutShot(idx, 'dark')}
+                              className={`w-full py-1 rounded font-black text-[10px] cursor-pointer ${
+                                r.darkResult === 'goal'
+                                  ? 'bg-emerald-500 text-sky-950'
+                                  : r.darkResult === 'miss'
+                                  ? 'bg-rose-500 text-white'
+                                  : 'bg-sky-950 text-cyan-300 border border-cyan-400/20'
+                              }`}
+                            >
+                              D: {r.darkResult.toUpperCase()}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Recessed Master Clocks Bay */}
-                  <div className="grid grid-cols-[1.4fr_1fr] gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-[1.4fr_1fr] gap-4">
                     
                     {/* Game Clock */}
                     <div className="rounded-2xl p-4 bg-gradient-to-b from-sky-950/90 via-blue-950/95 to-indigo-950/95 border-2 border-cyan-400/40 shadow-[inset_0_4px_20px_rgba(6,182,212,0.2)] flex flex-col justify-between">
                       <div className="flex items-center justify-between text-[10px] font-mono font-extrabold tracking-widest text-cyan-200">
-                        <span>MASTER GAME CLOCK</span>
+                        <span>MASTER GAME CLOCK ({periodLabel(period)})</span>
                         <span className="text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">100ms TICK</span>
                       </div>
                       <div className="text-5xl font-black font-mono tracking-tight text-white py-1 tabular-nums drop-shadow-[0_0_24px_rgba(34,211,238,0.45)]">
@@ -702,21 +1147,21 @@ export default function App() {
                       <div className="flex items-center gap-2 pt-2 border-t border-cyan-400/20">
                         <button 
                           onClick={() => setGameTimeMs(g => Math.max(0, g - 1000))} 
-                          className="px-2.5 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/30 text-[10px] font-mono font-bold text-cyan-100 transition"
+                          className="px-2.5 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/30 text-[10px] font-mono font-bold text-cyan-100 transition cursor-pointer"
                         >
                           -1s
                         </button>
                         <button 
                           onClick={() => setGameTimeMs(g => g + 1000)} 
-                          className="px-2.5 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/30 text-[10px] font-mono font-bold text-cyan-100 transition"
+                          className="px-2.5 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/30 text-[10px] font-mono font-bold text-cyan-100 transition cursor-pointer"
                         >
                           +1s
                         </button>
                         <button 
-                          onClick={() => setGameTimeMs(8 * 60 * 1000)} 
-                          className="px-2.5 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/30 text-[10px] font-mono font-bold text-cyan-100 ml-auto transition"
+                          onClick={() => setGameTimeMs(period >= 5 ? 3 * 60 * 1000 : 8 * 60 * 1000)} 
+                          className="px-2.5 py-0.5 rounded-md bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/30 text-[10px] font-mono font-bold text-cyan-100 ml-auto transition cursor-pointer"
                         >
-                          Reset 8:00
+                          Reset {period >= 5 ? '3:00' : '8:00'}
                         </button>
                       </div>
                     </div>
@@ -746,41 +1191,43 @@ export default function App() {
                   </div>
 
                   {/* Tactical Quick Dock: Undo & Adjustments */}
-                  <div className="grid grid-cols-[1.3fr_1fr_1fr_1fr] gap-3">
+                  <div className="grid grid-cols-4 gap-3">
                     <button
                       onClick={handleUndo}
                       disabled={undoStack.length === 0}
-                      className="h-11 rounded-xl bg-gradient-to-b from-violet-500 to-fuchsia-600 border-t border-white/40 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_4px_0_#6b21a8] active:translate-y-1 active:shadow-none disabled:opacity-35 disabled:pointer-events-none transition"
+                      className="h-11 rounded-xl bg-gradient-to-b from-cyan-500 to-blue-600 border-t border-white/40 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_4px_0_#0369a1] active:translate-y-1 active:shadow-none disabled:opacity-35 disabled:pointer-events-none transition cursor-pointer"
+                      title="Undo last clock, score, or exclusion change (Hotkey: Z)"
                     >
                       <RotateCcw size={14} />
-                      <span>UNDO RESET</span>
+                      <span>UNDO ({undoStack.length})</span>
                     </button>
 
                     <button
                       onClick={() => adjustShot(-1)}
-                      className="h-11 rounded-xl bg-gradient-to-b from-sky-500 to-blue-600 border-t border-cyan-200/40 text-white font-mono font-bold text-sm shadow-[0_4px_0_#0369a1] active:translate-y-1 active:shadow-none transition"
+                      className="h-11 rounded-xl bg-gradient-to-b from-sky-500 to-blue-600 border-t border-cyan-200/40 text-white font-mono font-bold text-sm shadow-[0_4px_0_#0369a1] active:translate-y-1 active:shadow-none transition cursor-pointer"
                     >
                       -1s Shot
                     </button>
 
                     <button
                       onClick={() => adjustShot(1)}
-                      className="h-11 rounded-xl bg-gradient-to-b from-sky-500 to-blue-600 border-t border-cyan-200/40 text-white font-mono font-bold text-sm shadow-[0_4px_0_#0369a1] active:translate-y-1 active:shadow-none transition"
+                      className="h-11 rounded-xl bg-gradient-to-b from-sky-500 to-blue-600 border-t border-cyan-200/40 text-white font-mono font-bold text-sm shadow-[0_4px_0_#0369a1] active:translate-y-1 active:shadow-none transition cursor-pointer"
                     >
                       +1s Shot
                     </button>
 
                     <button
                       onClick={() => fireHornManual(1000)}
-                      className="h-11 rounded-xl bg-gradient-to-b from-rose-500 to-red-600 border-t border-white/40 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_4px_0_#9f1239] active:translate-y-1 active:shadow-none transition"
+                      className="h-11 rounded-xl bg-gradient-to-b from-rose-500 to-red-600 border-t border-white/40 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-[0_4px_0_#9f1239] active:translate-y-1 active:shadow-none transition cursor-pointer"
+                      title="Manual Pool Horn (Hotkey: H)"
                     >
                       <Volume2 size={14} />
                       <span>BUZZER</span>
                     </button>
                   </div>
 
-                  {/* Team Bays: Scores & 20-Second Exclusion Trackers */}
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Team Bays: Scores, Timeouts & 20-Second Exclusion Trackers */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     
                     {/* WHITE TEAM — Sunlit Frosty Aqua Card */}
                     <div className="rounded-2xl p-4 bg-gradient-to-b from-sky-700/70 via-sky-800/80 to-blue-900/90 border-2 border-white/40 flex flex-col justify-between shadow-xl">
@@ -798,8 +1245,8 @@ export default function App() {
                         {/* Score Stepper */}
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => { sounds.playClick(); setScoreWhite(s => Math.max(0, s - 1)); }}
-                            className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 border border-white/30 font-black text-white text-base flex items-center justify-center transition"
+                            onClick={() => handleScoreDelta('white', -1)}
+                            className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 border border-white/30 font-black text-white text-base flex items-center justify-center transition cursor-pointer"
                           >
                             -
                           </button>
@@ -807,28 +1254,52 @@ export default function App() {
                             {scoreWhite}
                           </span>
                           <button
-                            onClick={() => { sounds.playClick(); setScoreWhite(s => s + 1); reset30(); }}
-                            className="w-8 h-8 rounded-lg bg-cyan-400/30 hover:bg-cyan-400/45 border border-cyan-200/40 font-black text-white text-base flex items-center justify-center transition"
+                            onClick={() => handleScoreDelta('white', 1)}
+                            className="w-8 h-8 rounded-lg bg-cyan-400/30 hover:bg-cyan-400/45 border border-cyan-200/40 font-black text-white text-base flex items-center justify-center transition cursor-pointer"
+                            title="Score Goal (+1), Reset 30s, and Auto-Release Dark Exclusions (Rule WP 21)"
                           >
                             +
                           </button>
                         </div>
                       </div>
 
+                      {/* White Timeouts Bar */}
+                      <div className="flex items-center justify-between py-2 border-b border-white/15 text-[10px] font-mono">
+                        <span className="text-cyan-100 font-bold">
+                          TIMEOUTS ({timeoutsWhite.full} FULL &bull; {timeoutsWhite.short} 30s)
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleCallTimeout('white', '60s')}
+                            disabled={timeoutsWhite.full === 0}
+                            className="px-2 py-0.5 rounded bg-amber-400/25 hover:bg-amber-400/40 border border-amber-300/50 text-amber-100 font-bold disabled:opacity-30 cursor-pointer"
+                          >
+                            60s TO
+                          </button>
+                          <button
+                            onClick={() => handleCallTimeout('white', '30s')}
+                            disabled={timeoutsWhite.short === 0}
+                            className="px-2 py-0.5 rounded bg-cyan-400/25 hover:bg-cyan-400/40 border border-cyan-300/50 text-cyan-100 font-bold disabled:opacity-30 cursor-pointer"
+                          >
+                            30s TO
+                          </button>
+                        </div>
+                      </div>
+
                       {/* White Exclusions */}
-                      <div className="pt-3">
+                      <div className="pt-2.5">
                         <div className="flex items-center justify-between text-[10px] font-mono font-bold text-cyan-100 mb-2">
                           <span>20s PENALTIES</span>
                           <button
                             onClick={() => setShowCapModal('white')}
-                            className="px-2.5 py-0.5 rounded-md bg-rose-500/35 text-rose-100 border border-rose-300/50 text-[10px] font-bold hover:bg-rose-500/50 transition"
+                            className="px-2.5 py-0.5 rounded-md bg-rose-500/35 text-rose-100 border border-rose-300/50 text-[10px] font-bold hover:bg-rose-500/50 transition cursor-pointer"
                           >
                             + EJECT
                           </button>
                         </div>
                         <div className="flex flex-wrap gap-2 min-h-[32px]">
                           {exclusions.filter(e => e.team === 'white').length === 0 ? (
-                            <span className="text-[11px] text-sky-200/70 font-mono italic">No active penalties</span>
+                            <span className="text-[11px] text-sky-200/70 font-mono italic">Full Strength (6-on-6)</span>
                           ) : (
                             exclusions.filter(e => e.team === 'white').map(e => (
                               <div key={e.id} className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-rose-600/80 border border-rose-300/60 text-xs font-mono shadow">
@@ -836,7 +1307,7 @@ export default function App() {
                                 <span className="text-amber-200 font-extrabold">{e.remaining.toFixed(0)}s</span>
                                 <button
                                   onClick={() => releaseExclusion(e.id)}
-                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/20 hover:bg-white/30 text-white"
+                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/20 hover:bg-white/30 text-white cursor-pointer"
                                   title="Early release (Goal / Turnover)"
                                 >
                                   REL
@@ -864,8 +1335,8 @@ export default function App() {
                         {/* Score Stepper */}
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => { sounds.playClick(); setScoreDark(s => Math.max(0, s - 1)); }}
-                            className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 border border-white/30 font-black text-white text-base flex items-center justify-center transition"
+                            onClick={() => handleScoreDelta('dark', -1)}
+                            className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 border border-white/30 font-black text-white text-base flex items-center justify-center transition cursor-pointer"
                           >
                             -
                           </button>
@@ -873,28 +1344,52 @@ export default function App() {
                             {scoreDark}
                           </span>
                           <button
-                            onClick={() => { sounds.playClick(); setScoreDark(s => s + 1); reset30(); }}
-                            className="w-8 h-8 rounded-lg bg-cyan-400/30 hover:bg-cyan-400/45 border border-cyan-200/40 font-black text-white text-base flex items-center justify-center transition"
+                            onClick={() => handleScoreDelta('dark', 1)}
+                            className="w-8 h-8 rounded-lg bg-cyan-400/30 hover:bg-cyan-400/45 border border-cyan-200/40 font-black text-white text-base flex items-center justify-center transition cursor-pointer"
+                            title="Score Goal (+1), Reset 30s, and Auto-Release White Exclusions (Rule WP 21)"
                           >
                             +
                           </button>
                         </div>
                       </div>
 
+                      {/* Dark Timeouts Bar */}
+                      <div className="flex items-center justify-between py-2 border-b border-cyan-400/20 text-[10px] font-mono">
+                        <span className="text-cyan-100 font-bold">
+                          TIMEOUTS ({timeoutsDark.full} FULL &bull; {timeoutsDark.short} 30s)
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleCallTimeout('dark', '60s')}
+                            disabled={timeoutsDark.full === 0}
+                            className="px-2 py-0.5 rounded bg-amber-400/25 hover:bg-amber-400/40 border border-amber-300/50 text-amber-100 font-bold disabled:opacity-30 cursor-pointer"
+                          >
+                            60s TO
+                          </button>
+                          <button
+                            onClick={() => handleCallTimeout('dark', '30s')}
+                            disabled={timeoutsDark.short === 0}
+                            className="px-2 py-0.5 rounded bg-cyan-400/25 hover:bg-cyan-400/40 border border-cyan-300/50 text-cyan-100 font-bold disabled:opacity-30 cursor-pointer"
+                          >
+                            30s TO
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Dark Exclusions */}
-                      <div className="pt-3">
+                      <div className="pt-2.5">
                         <div className="flex items-center justify-between text-[10px] font-mono font-bold text-cyan-100 mb-2">
                           <span>20s PENALTIES</span>
                           <button
                             onClick={() => setShowCapModal('dark')}
-                            className="px-2.5 py-0.5 rounded-md bg-rose-500/35 text-rose-100 border border-rose-300/50 text-[10px] font-bold hover:bg-rose-500/50 transition"
+                            className="px-2.5 py-0.5 rounded-md bg-rose-500/35 text-rose-100 border border-rose-300/50 text-[10px] font-bold hover:bg-rose-500/50 transition cursor-pointer"
                           >
                             + EJECT
                           </button>
                         </div>
                         <div className="flex flex-wrap gap-2 min-h-[32px]">
                           {exclusions.filter(e => e.team === 'dark').length === 0 ? (
-                            <span className="text-[11px] text-indigo-200/70 font-mono italic">No active penalties</span>
+                            <span className="text-[11px] text-indigo-200/70 font-mono italic">Full Strength (6-on-6)</span>
                           ) : (
                             exclusions.filter(e => e.team === 'dark').map(e => (
                               <div key={e.id} className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-rose-600/80 border border-rose-300/60 text-xs font-mono shadow">
@@ -902,7 +1397,7 @@ export default function App() {
                                 <span className="text-amber-200 font-extrabold">{e.remaining.toFixed(0)}s</span>
                                 <button
                                   onClick={() => releaseExclusion(e.id)}
-                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/20 hover:bg-white/30 text-white"
+                                  className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/20 hover:bg-white/30 text-white cursor-pointer"
                                   title="Early release (Goal / Turnover)"
                                 >
                                   REL
@@ -933,7 +1428,6 @@ export default function App() {
                           ? 'bg-amber-400/25 text-amber-200 border-amber-300/40 hover:bg-amber-400/35'
                           : 'bg-emerald-400/25 text-emerald-200 border-emerald-300/40 hover:bg-emerald-400/35'
                       }`}
-                      title={enable20sReset ? "Currently: NCAA/WA (20s reset enabled). Click to switch to High School Mode (30s only)" : "Currently: High School Mode (30s only). Click to switch to NCAA/WA Mode"}
                     >
                       {enable20sReset ? 'NCAA: 20s/30s' : 'NFHS: 30s ONLY'}
                     </button>
@@ -945,24 +1439,26 @@ export default function App() {
                         {/* RESET 30s (Turnover) */}
                         <button
                           onClick={reset30}
-                          className="flex-1 w-full rounded-3xl p-4 bg-gradient-to-b from-emerald-400 via-teal-500 to-emerald-600 border-t-2 border-white/50 shadow-[0_10px_0_#065f46,0_16px_28px_rgba(16,185,129,0.35)] active:translate-y-2 active:shadow-[0_2px_0_#065f46] text-white flex flex-col items-center justify-center transition-all select-none group"
+                          className="flex-1 w-full rounded-3xl p-4 bg-gradient-to-b from-emerald-400 via-teal-500 to-emerald-600 border-t-2 border-white/50 shadow-[0_10px_0_#065f46,0_16px_28px_rgba(16,185,129,0.35)] active:translate-y-2 active:shadow-[0_2px_0_#065f46] text-white flex flex-col items-center justify-center transition-all select-none group cursor-pointer"
+                          title="Reset Shot Clock to 30s (Hotkey: R)"
                         >
                           <span className="text-5xl font-black font-mono leading-none tracking-tight">30</span>
                           <span className="text-sm font-black tracking-wider uppercase mt-1">RESET 30</span>
                           <span className="text-[10px] font-mono font-extrabold text-emerald-950 bg-emerald-200/80 px-2.5 py-0.5 rounded-full mt-1">
-                            TURNOVER
+                            TURNOVER (R)
                           </span>
                         </button>
 
                         {/* RESET 20s (Rebound / Exclusion) */}
                         <button
                           onClick={reset20}
-                          className="flex-1 w-full rounded-3xl p-4 bg-gradient-to-b from-amber-400 via-orange-500 to-amber-600 border-t-2 border-white/50 shadow-[0_10px_0_#92400e,0_16px_28px_rgba(245,158,11,0.35)] active:translate-y-2 active:shadow-[0_2px_0_#92400e] text-white flex flex-col items-center justify-center transition-all select-none group"
+                          className="flex-1 w-full rounded-3xl p-4 bg-gradient-to-b from-amber-400 via-orange-500 to-amber-600 border-t-2 border-white/50 shadow-[0_10px_0_#92400e,0_16px_28px_rgba(245,158,11,0.35)] active:translate-y-2 active:shadow-[0_2px_0_#92400e] text-white flex flex-col items-center justify-center transition-all select-none group cursor-pointer"
+                          title="Reset Shot Clock to 20s (Hotkey: E)"
                         >
                           <span className="text-5xl font-black font-mono leading-none tracking-tight">20</span>
                           <span className="text-sm font-black tracking-wider uppercase mt-1">RESET 20</span>
                           <span className="text-[10px] font-mono font-extrabold text-amber-950 bg-amber-200/80 px-2.5 py-0.5 rounded-full mt-1">
-                            REBOUND / FOUL
+                            REBOUND / FOUL (E)
                           </span>
                         </button>
                       </>
@@ -970,16 +1466,14 @@ export default function App() {
                       /* SINGLE GIANT FULL-HEIGHT 30s PLUNGER (HIGH SCHOOL NFHS MODE) */
                       <button
                         onClick={reset30}
-                        className="flex-1 w-full rounded-3xl p-5 bg-gradient-to-b from-emerald-400 via-teal-500 to-emerald-600 border-t-2 border-white/50 shadow-[0_12px_0_#065f46,0_20px_35px_rgba(16,185,129,0.45)] active:translate-y-2 active:shadow-[0_4px_0_#065f46] text-white flex flex-col items-center justify-between transition-all select-none group"
+                        className="flex-1 w-full rounded-3xl p-5 bg-gradient-to-b from-emerald-400 via-teal-500 to-emerald-600 border-t-2 border-white/50 shadow-[0_12px_0_#065f46,0_20px_35px_rgba(16,185,129,0.45)] active:translate-y-2 active:shadow-[0_4px_0_#065f46] text-white flex flex-col items-center justify-between transition-all select-none group cursor-pointer"
                       >
-                        {/* Top Grip Ridges */}
                         <div className="w-12 flex flex-col gap-1.5 opacity-50">
                           <div className="h-1 rounded-full bg-white" />
                           <div className="h-1 rounded-full bg-white" />
                           <div className="h-1 rounded-full bg-white" />
                         </div>
 
-                        {/* Center Numeral & Action */}
                         <div className="flex flex-col items-center gap-2">
                           <span className="text-6xl font-black font-mono leading-none tracking-tight drop-shadow-md">30</span>
                           <span className="text-2xl font-black tracking-wider uppercase font-mono">RESET 30</span>
@@ -988,7 +1482,6 @@ export default function App() {
                           </span>
                         </div>
 
-                        {/* Bottom Grip Ridges */}
                         <div className="w-12 flex flex-col gap-1.5 opacity-50">
                           <div className="h-1 rounded-full bg-white" />
                           <div className="h-1 rounded-full bg-white" />
@@ -1001,12 +1494,58 @@ export default function App() {
 
               </div>
 
+              {/* Footer Hotkey & Hardware Status Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-cyan-400/25 text-[10px] font-mono text-cyan-200/80">
+                <div className="flex items-center gap-2">
+                  <Keyboard size={12} className="text-cyan-300" />
+                  <span>Desk Hotkeys: <strong>[Space]</strong> Start/Stop &bull; <strong>[R]</strong> Reset 30 &bull; <strong>[E]</strong> Reset 20 &bull; <strong>[H]</strong> Horn &bull; <strong>[Z]</strong> Undo</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setActiveTab('bom')}
+                    className="text-amber-300 hover:underline font-bold cursor-pointer"
+                  >
+                    Order Dongle BOM ($24–$49) &rarr;
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('landing')}
+                    className="text-emerald-300 hover:underline font-bold cursor-pointer"
+                  >
+                    Product Overview &amp; ROI &rarr;
+                  </button>
+                </div>
+              </div>
+
             </div>
 
           </div>
         )}
 
-        {/* VIEW B: LIVE OBS BROADCAST SCOREBUG OVERLAY */}
+        {/* VIEW B: COMMERCIAL PRODUCT LANDING PAGE & ROI CALCULATOR */}
+        {activeTab === 'landing' && (
+          <LandingPage
+            gameTimeFormatted={formatMinSecTenths(gameTimeMs)}
+            shotDisplay={shotDisplay}
+            shotSec={shotSec}
+            isBlanked={isBlanked}
+            scoreWhite={scoreWhite}
+            scoreDark={scoreDark}
+            teamWhiteName={teamWhiteName}
+            teamDarkName={teamDarkName}
+            period={period}
+            isRunning={isRunning}
+            onToggleStartStop={toggleStartStop}
+            onReset30={reset30}
+            onReset20={reset20}
+            onFireHorn={() => fireHornManual(1200)}
+            onNavigateTab={setActiveTab}
+          />
+        )}
+
+        {/* VIEW C: READY-TO-ORDER HARDWARE BOM & WIRING HUB */}
+        {activeTab === 'bom' && <HardwareBomPanel />}
+
+        {/* VIEW D: LIVE OBS BROADCAST SCOREBUG OVERLAY */}
         {activeTab === 'overlay' && (
           <div className="flex-1 p-8 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-600/30 via-sky-900 to-indigo-950 space-y-6">
             <div className="w-full max-w-4xl p-6 rounded-2xl bg-sky-950/80 backdrop-blur-xl border-2 border-cyan-400/40 shadow-2xl space-y-4">
@@ -1018,38 +1557,50 @@ export default function App() {
               </div>
 
               {/* Television Graphic Representation */}
-              <div className="p-8 rounded-2xl bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-500/30 via-blue-900 to-indigo-950 border border-cyan-300/30 flex items-center justify-center">
+              <div className="p-8 rounded-2xl bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-500/30 via-blue-900 to-indigo-950 border border-cyan-300/30 flex flex-col items-center justify-center gap-3">
                 
                 <div className="h-14 rounded-2xl bg-gradient-to-r from-sky-900/95 via-blue-950/95 to-indigo-950/95 border-2 border-cyan-300/50 shadow-2xl flex items-center overflow-hidden font-mono">
                   {/* White Team */}
-                  <div className="flex items-center px-4 gap-3 bg-white/15">
+                  <div className="flex items-center px-4 gap-3 bg-white/15 h-full">
                     <span className="w-3 h-3 rounded-full bg-white shadow-md" />
                     <span className="font-black text-sm text-white">{teamWhiteName.toUpperCase()}</span>
                     <span className="text-2xl font-black text-white px-2 py-0.5 rounded bg-sky-950/60">{scoreWhite}</span>
                   </div>
 
                   {/* Period */}
-                  <div className="px-3 bg-sky-950/80 text-xs font-bold text-cyan-300">
-                    Q{period}
+                  <div className="px-3 bg-sky-950/80 text-xs font-bold text-cyan-300 h-full flex items-center">
+                    {periodLabel(period)}
                   </div>
 
                   {/* Dark Team */}
-                  <div className="flex items-center px-4 gap-3 bg-blue-800/50">
+                  <div className="flex items-center px-4 gap-3 bg-blue-800/50 h-full">
                     <span className="text-2xl font-black text-cyan-300 px-2 py-0.5 rounded bg-sky-950/60">{scoreDark}</span>
                     <span className="font-black text-sm text-cyan-200">{teamDarkName.toUpperCase()}</span>
                     <span className="w-3 h-3 rounded-full bg-cyan-400 shadow-md" />
                   </div>
 
                   {/* Master Game Clock */}
-                  <div className="px-4 text-cyan-300 text-lg font-black bg-sky-950/90">
+                  <div className="px-4 text-cyan-300 text-lg font-black bg-sky-950/90 h-full flex items-center">
                     {formatMinSec(gameTimeMs)}
                   </div>
 
                   {/* Shot Clock */}
-                  <div className={`px-4 text-xl font-black ${isBlanked ? 'text-sky-700 bg-sky-950' : (shotSec <= 5 ? 'text-rose-400 bg-rose-950/80' : 'text-amber-300 bg-amber-900/50')}`}>
+                  <div className={`px-4 text-xl font-black h-full flex items-center ${isBlanked ? 'text-sky-700 bg-sky-950' : (shotSec <= 5 ? 'text-rose-400 bg-rose-950/80' : 'text-amber-300 bg-amber-900/50')}`}>
                     :{isBlanked ? '--' : `${shotSec}`}
                   </div>
                 </div>
+
+                {/* Power-Play Exclusion Sub-Bar */}
+                {exclusions.length > 0 && (
+                  <div className="flex items-center gap-2 px-4 py-1 rounded-full bg-rose-600/80 border border-rose-300/50 text-xs font-mono font-bold text-white shadow">
+                    <span>⚡ POWER PLAY:</span>
+                    {exclusions.map(e => (
+                      <span key={e.id}>
+                        {e.team === 'white' ? teamWhiteName : teamDarkName} #{e.cap} ({e.remaining.toFixed(0)}s)
+                      </span>
+                    ))}
+                  </div>
+                )}
 
               </div>
 
@@ -1060,9 +1611,9 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW C: PHYSICAL DECK HARDWARE SIMULATOR & RS-232 BUS */}
+        {/* VIEW E: PHYSICAL DECK HARDWARE SIMULATOR & RS-232 BUS */}
         {activeTab === 'rack' && (
-          <div className="flex-1 p-8 grid grid-cols-2 gap-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-600/30 via-sky-900 to-indigo-950 overflow-y-auto">
+          <div className="flex-1 p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-600/30 via-sky-900 to-indigo-950 overflow-y-auto">
             
             {/* Colorado SC-500 Physical LED Enclosure */}
             <div className="rounded-2xl p-6 bg-gradient-to-b from-sky-900/90 to-indigo-950/95 border-2 border-cyan-400/40 shadow-2xl flex flex-col justify-between">
@@ -1116,9 +1667,9 @@ export default function App() {
                 {busLog.map((log, idx) => (
                   <div key={idx} className="flex items-center gap-3 py-0.5 border-b border-cyan-400/10">
                     <span className="text-sky-300/70">{log.time}</span>
-                    <span className="text-fuchsia-300 font-bold">{log.protocol}</span>
+                    <span className="text-cyan-300 font-bold">{log.protocol}</span>
                     <span className="text-amber-300">{log.header}</span>
-                    <span className="text-emerald-300">"{log.ascii}"</span>
+                    <span className="text-emerald-300">&quot;{log.ascii}&quot;</span>
                   </div>
                 ))}
               </div>
@@ -1127,19 +1678,21 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW D: OFFICIAL MATCH SCORESHEET (PRINTABLE) */}
+        {/* VIEW F: OFFICIAL MATCH SCORESHEET (LIVE DATA + PRINTABLE) */}
         {activeTab === 'scoresheet' && (
           <div className="flex-1 p-8 flex flex-col items-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-600/30 via-sky-900 to-indigo-950 overflow-y-auto">
-            <div className="w-full max-w-3xl p-8 rounded-2xl bg-white text-slate-900 shadow-2xl space-y-6 print:p-0 print:border-0 print:shadow-none">
+            <div className="w-full max-w-4xl p-8 rounded-2xl bg-white text-slate-900 shadow-2xl space-y-6 print:p-0 print:border-0 print:shadow-none">
               
               <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
                 <div>
-                  <h1 className="text-2xl font-black tracking-tight">USA WATER POLO / WORLD AQUATICS</h1>
-                  <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider">Official Match Scoresheet & Summary</h2>
+                  <h1 className="text-2xl font-black tracking-tight">USA WATER POLO / WORLD AQUATICS / 6-8 SPORTS</h1>
+                  <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider">
+                    Official Match Scoresheet &bull; Game ID: {active68Match.gameId} &bull; {active68Match.tournament}
+                  </h2>
                 </div>
                 <button
                   onClick={() => window.print()}
-                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition print:hidden"
+                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition print:hidden cursor-pointer"
                 >
                   <Printer size={14} />
                   <span>Print Sheet (PDF)</span>
@@ -1147,24 +1700,30 @@ export default function App() {
               </div>
 
               {/* Match Header */}
-              <div className="grid grid-cols-3 gap-4 p-4 rounded-xl bg-slate-100 border border-slate-300 font-mono text-xs">
+              <div className="grid grid-cols-4 gap-4 p-4 rounded-xl bg-slate-100 border border-slate-300 font-mono text-xs">
                 <div>
                   <span className="text-slate-500 block">WHITE TEAM:</span>
                   <span className="font-bold text-base">{teamWhiteName}</span>
+                  <span className="text-[10px] text-slate-500 block">Timeouts Left: {timeoutsWhite.full}F / {timeoutsWhite.short}S</span>
                 </div>
                 <div>
                   <span className="text-slate-500 block">DARK TEAM:</span>
                   <span className="font-bold text-base">{teamDarkName}</span>
+                  <span className="text-[10px] text-slate-500 block">Timeouts Left: {timeoutsDark.full}F / {timeoutsDark.short}S</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">FINAL SCORE:</span>
-                  <span className="font-bold text-base text-blue-700">{scoreWhite} - {scoreDark}</span>
+                  <span className="text-slate-500 block">VENUE:</span>
+                  <span className="font-bold text-xs">{active68Match.venue}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">CURRENT / FINAL SCORE:</span>
+                  <span className="font-bold text-xl text-blue-700">{scoreWhite} - {scoreDark}</span>
                 </div>
               </div>
 
-              {/* Quarter Progression Table */}
+              {/* Live Quarter Progression Table */}
               <div>
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-2 font-mono">Period Scoring Progression</h3>
+                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-2 font-mono">Live Period Scoring Progression</h3>
                 <table className="w-full text-xs font-mono border-collapse border border-slate-300">
                   <thead>
                     <tr className="bg-slate-200">
@@ -1173,32 +1732,91 @@ export default function App() {
                       <th className="border border-slate-300 p-2 text-center">Q2</th>
                       <th className="border border-slate-300 p-2 text-center">Q3</th>
                       <th className="border border-slate-300 p-2 text-center">Q4</th>
+                      <th className="border border-slate-300 p-2 text-center">OT1</th>
+                      <th className="border border-slate-300 p-2 text-center">OT2</th>
                       <th className="border border-slate-300 p-2 text-center">Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="border border-slate-300 p-2 font-bold">{teamWhiteName}</td>
-                      <td className="border border-slate-300 p-2 text-center">3</td>
-                      <td className="border border-slate-300 p-2 text-center">4</td>
-                      <td className="border border-slate-300 p-2 text-center">2</td>
-                      <td className="border border-slate-300 p-2 text-center">2</td>
+                      <td className="border border-slate-300 p-2 font-bold">{teamWhiteName} (White)</td>
+                      {[0, 1, 2, 3, 4, 5].map(i => (
+                        <td key={i} className="border border-slate-300 p-2 text-center">{quarterScores.white[i] ?? 0}</td>
+                      ))}
                       <td className="border border-slate-300 p-2 text-center font-bold text-sm">{scoreWhite}</td>
                     </tr>
                     <tr>
-                      <td className="border border-slate-300 p-2 font-bold">{teamDarkName}</td>
-                      <td className="border border-slate-300 p-2 text-center">2</td>
-                      <td className="border border-slate-300 p-2 text-center">2</td>
-                      <td className="border border-slate-300 p-2 text-center">3</td>
-                      <td className="border border-slate-300 p-2 text-center">2</td>
+                      <td className="border border-slate-300 p-2 font-bold">{teamDarkName} (Dark)</td>
+                      {[0, 1, 2, 3, 4, 5].map(i => (
+                        <td key={i} className="border border-slate-300 p-2 text-center">{quarterScores.dark[i] ?? 0}</td>
+                      ))}
                       <td className="border border-slate-300 p-2 text-center font-bold text-sm">{scoreDark}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
+              {/* Live Roster Box Scores (White & Dark) */}
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-600 mb-2 font-mono">{teamWhiteName} (White Caps) Box Score</h3>
+                  <table className="w-full text-[11px] font-mono border-collapse border border-slate-300">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="border border-slate-300 p-1.5 text-center">#</th>
+                        <th className="border border-slate-300 p-1.5 text-left">Player</th>
+                        <th className="border border-slate-300 p-1.5 text-center">G</th>
+                        <th className="border border-slate-300 p-1.5 text-center">Fouls</th>
+                        <th className="border border-slate-300 p-1.5 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {whiteRoster.map(p => (
+                        <tr key={p.cap}>
+                          <td className="border border-slate-300 p-1.5 text-center font-bold">{p.cap}</td>
+                          <td className="border border-slate-300 p-1.5">{p.name}</td>
+                          <td className="border border-slate-300 p-1.5 text-center font-bold">{p.goals}</td>
+                          <td className="border border-slate-300 p-1.5 text-center">{p.exclusions}/3</td>
+                          <td className="border border-slate-300 p-1.5 text-center font-bold text-rose-600">
+                            {p.exclusions >= 3 ? 'ROLLED' : 'OK'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-600 mb-2 font-mono">{teamDarkName} (Dark Caps) Box Score</h3>
+                  <table className="w-full text-[11px] font-mono border-collapse border border-slate-300">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="border border-slate-300 p-1.5 text-center">#</th>
+                        <th className="border border-slate-300 p-1.5 text-left">Player</th>
+                        <th className="border border-slate-300 p-1.5 text-center">G</th>
+                        <th className="border border-slate-300 p-1.5 text-center">Fouls</th>
+                        <th className="border border-slate-300 p-1.5 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {darkRoster.map(p => (
+                        <tr key={p.cap}>
+                          <td className="border border-slate-300 p-1.5 text-center font-bold">{p.cap}</td>
+                          <td className="border border-slate-300 p-1.5">{p.name}</td>
+                          <td className="border border-slate-300 p-1.5 text-center font-bold">{p.goals}</td>
+                          <td className="border border-slate-300 p-1.5 text-center">{p.exclusions}/3</td>
+                          <td className="border border-slate-300 p-1.5 text-center font-bold text-rose-600">
+                            {p.exclusions >= 3 ? 'ROLLED' : 'OK'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               {/* Sign-off */}
-              <div className="grid grid-cols-2 gap-8 pt-8 border-t border-slate-300 text-xs">
+              <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-300 text-xs">
                 <div>
                   <div className="border-b border-slate-400 pb-1 mb-1"></div>
                   <span className="text-slate-500">Referee 1 Signature</span>
@@ -1213,7 +1831,7 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW E: PRODUCT MOCKUPS GALLERY */}
+        {/* VIEW G: PRODUCT MOCKUPS GALLERY */}
         {activeTab === 'mockups' && (
           <MockupsGallery
             gameTimeFormatted={formatMinSecTenths(gameTimeMs)}
@@ -1233,7 +1851,7 @@ export default function App() {
           />
         )}
 
-        {/* VIEW F: 6-8 SPORTS LIVE GAME DESK & ROSTER BRIDGE */}
+        {/* VIEW H: 6-8 SPORTS LIVE GAME DESK & ROSTER BRIDGE */}
         {activeTab === 'sixeight' && (
           <SixEightPanel
             syncMode={sixEightMode}
@@ -1258,10 +1876,21 @@ export default function App() {
           />
         )}
 
+        {/* VIEW I: UNIVERSAL SCOREBOARD AUTO-FINDER & TOURNAMENT COMMAND HUB */}
+        {activeTab === 'tournament' && (
+          <TournamentHubPanel
+            onSelectProtocol={(p) => {
+              sounds.playClick();
+              setProtocol(p);
+              bleManager.sendProtocol(p);
+            }}
+          />
+        )}
+
       </main>
 
       {/* ======================================================== */}
-      {/* 3. CAP NUMBER PICKER MODAL (WITH 6-8 SPORTS ROSTER)      */}
+      {/* 3. CAP NUMBER PICKER MODAL (WITH 3-FOUL CAP-OUT LOCK)    */}
       {/* ======================================================== */}
       {showCapModal && (
         <div className="fixed inset-0 bg-sky-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
@@ -1272,12 +1901,12 @@ export default function App() {
                   Select {showCapModal === 'white' ? teamWhiteName : teamDarkName} Cap # for 20s Exclusion
                 </span>
                 <span className="text-[10px] font-mono text-cyan-200">
-                  Synced with 6-8 Sports Roster ({active68Match.gameId}) &bull; Tracks 3-Foul Cap-Out
+                  Synced with 6-8 Sports Roster ({active68Match.gameId}) &bull; Rule WP 22.3 3-Foul Cap-Out Enforced
                 </span>
               </div>
               <button
                 onClick={() => setShowCapModal(null)}
-                className="px-2.5 py-1 rounded-lg bg-white/10 text-cyan-200 hover:text-white text-xs font-mono"
+                className="px-2.5 py-1 rounded-lg bg-white/10 text-cyan-200 hover:text-white text-xs font-mono cursor-pointer"
               >
                 Cancel
               </button>
@@ -1292,11 +1921,12 @@ export default function App() {
                 return (
                   <button
                     key={cap}
+                    disabled={isCappedOut}
                     onClick={() => addExclusion(showCapModal, cap)}
                     className={`p-2.5 rounded-xl border font-mono transition flex flex-col items-center justify-between ${
                       isCappedOut
-                        ? 'bg-rose-950/70 border-rose-400/50 text-rose-200 hover:bg-rose-600'
-                        : 'bg-sky-900/70 hover:bg-rose-500 hover:text-white border-cyan-400/30 text-white'
+                        ? 'bg-rose-950/80 border-rose-400/60 text-rose-300 opacity-50 cursor-not-allowed'
+                        : 'bg-sky-900/70 hover:bg-rose-500 hover:text-white border-cyan-400/30 text-white cursor-pointer'
                     }`}
                   >
                     <span className="text-lg font-black leading-none">#{cap}</span>
@@ -1304,9 +1934,13 @@ export default function App() {
                       {player ? player.name : `Cap ${cap}`}
                     </span>
                     <span className={`text-[9px] px-1.5 py-0.2 rounded-full mt-1 font-bold ${
-                      fouls >= 2 ? 'bg-rose-500/40 text-amber-200' : 'bg-sky-950/60 text-cyan-200'
+                      isCappedOut
+                        ? 'bg-rose-600 text-white'
+                        : fouls >= 2
+                        ? 'bg-rose-500/40 text-amber-200'
+                        : 'bg-sky-950/60 text-cyan-200'
                     }`}>
-                      {fouls}/3 Fouls
+                      {isCappedOut ? '3/3 CAPPED OUT' : `${fouls}/3 Fouls`}
                     </span>
                   </button>
                 );
