@@ -4,7 +4,7 @@ import {
   Radio, Settings, FileText, Check, Copy, ExternalLink, 
   Plus, Minus, AlertTriangle, Printer, Layers, Clock,
   ArrowRight, Undo2, Award, Zap, Sparkles, Bluetooth, Trophy,
-  Cpu, Rocket, Timer, Keyboard, Compass, Smartphone
+  Cpu, Rocket, Timer, Keyboard, Compass, Smartphone, Database
 } from 'lucide-react';
 import MockupsGallery from './components/mockups-gallery';
 import SixEightPanel from './components/six-eight-panel';
@@ -13,7 +13,9 @@ import LandingPage from './components/landing-page';
 import TournamentHubPanel from './components/tournament-hub-panel';
 import PhoneConsole from './components/phone-console';
 import FirmwareFlasherPanel from './components/firmware-flasher-panel';
+import OfflineResiliencePanel from './components/offline-resilience-panel';
 import { bleManager, BleConnectionStatus } from './engine/bluetooth-manager';
+import { matchPersistence, PersistedMatchState } from './engine/match-persistence';
 import {
   PRESET_68_MATCHES,
   SixEightMatchPreset,
@@ -84,7 +86,7 @@ const sounds = new SoundEngine();
 
 // --- Types ---
 type Protocol = 'cts' | 'daktronics';
-export type ActiveTab = 'console' | 'tournament' | 'flasher' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
+export type ActiveTab = 'console' | 'offline' | 'tournament' | 'flasher' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
 
 interface Exclusion {
   id: string;
@@ -118,9 +120,14 @@ interface ClockSnapshot {
 }
 
 export default function App() {
+  // Zero-Data-Loss Initial Hydration from LocalStorage Mirror & IndexedDB
+  const [initialMirror] = useState<PersistedMatchState | null>(() =>
+    matchPersistence.loadImmediateMirror()
+  );
+
   // Navigation & Protocol State
   const [activeTab, setActiveTab] = useState<ActiveTab>('console');
-  const [protocol, setProtocol] = useState<Protocol>('cts');
+  const [protocol, setProtocol] = useState<Protocol>(initialMirror?.protocol || 'cts');
 
   // Web Bluetooth Dongle Connection State
   const [bleStatus, setBleStatus] = useState<BleConnectionStatus>('disconnected');
@@ -128,47 +135,57 @@ export default function App() {
   const [bleError, setBleError] = useState<string | null>(null);
 
   // Match Clocks & State
-  const [isRunning, setIsRunning] = useState<boolean>(false);
-  const [gameTimeMs, setGameTimeMs] = useState<number>(8 * 60 * 1000); // 8 minutes in ms
-  const [shotTimeMs, setShotTimeMs] = useState<number>(30 * 1000);    // 30 seconds in ms
-  const [period, setPeriod] = useState<number>(1); // 1-4 = Q1-Q4, 5 = OT1, 6 = OT2, 7 = PSO
+  const [isRunning, setIsRunning] = useState<boolean>(false); // Always boot paused for referee safety
+  const [gameTimeMs, setGameTimeMs] = useState<number>(initialMirror?.gameTimeMs ?? 8 * 60 * 1000);
+  const [shotTimeMs, setShotTimeMs] = useState<number>(initialMirror?.shotTimeMs ?? 30 * 1000);
+  const [period, setPeriod] = useState<number>(initialMirror?.period ?? 1);
   const [isHornActive, setIsHornActive] = useState<boolean>(false);
 
   // Teams & Scores
-  const [teamWhiteName, setTeamWhiteName] = useState<string>('VANGUARD');
-  const [teamDarkName, setTeamDarkName] = useState<string>('STANFORD');
-  const [scoreWhite, setScoreWhite] = useState<number>(11);
-  const [scoreDark, setScoreDark] = useState<number>(9);
-  const [quarterScores, setQuarterScores] = useState<{ white: number[]; dark: number[] }>({
-    white: [3, 4, 2, 2, 0, 0, 0],
-    dark: [2, 2, 3, 2, 0, 0, 0],
-  });
-  const [exclusions, setExclusions] = useState<Exclusion[]>([
-    { id: '1', team: 'dark', cap: 4, remaining: 14 }
-  ]);
+  const [teamWhiteName, setTeamWhiteName] = useState<string>(initialMirror?.teamWhiteName || 'VANGUARD');
+  const [teamDarkName, setTeamDarkName] = useState<string>(initialMirror?.teamDarkName || 'STANFORD');
+  const [scoreWhite, setScoreWhite] = useState<number>(initialMirror?.scoreWhite ?? 11);
+  const [scoreDark, setScoreDark] = useState<number>(initialMirror?.scoreDark ?? 9);
+  const [quarterScores, setQuarterScores] = useState<{ white: number[]; dark: number[] }>(
+    initialMirror?.quarterScores || {
+      white: [3, 4, 2, 2, 0, 0, 0],
+      dark: [2, 2, 3, 2, 0, 0, 0],
+    }
+  );
+  const [exclusions, setExclusions] = useState<Exclusion[]>(
+    initialMirror?.exclusions || [{ id: '1', team: 'dark', cap: 4, remaining: 14 }]
+  );
 
   // Team Timeouts Engine (3 Full 60s + 1 Short 30s per team)
-  const [timeoutsWhite, setTimeoutsWhite] = useState<{ full: number; short: number }>({ full: 3, short: 1 });
-  const [timeoutsDark, setTimeoutsDark] = useState<{ full: number; short: number }>({ full: 3, short: 1 });
+  const [timeoutsWhite, setTimeoutsWhite] = useState<{ full: number; short: number }>(
+    initialMirror?.timeoutsWhite || { full: 3, short: 1 }
+  );
+  const [timeoutsDark, setTimeoutsDark] = useState<{ full: number; short: number }>(
+    initialMirror?.timeoutsDark || { full: 3, short: 1 }
+  );
   const [activeTimeout, setActiveTimeout] = useState<ActiveTimeoutState | null>(null);
 
   // Penalty Shootout (PSO) 5-Round + Sudden Death Scorecard
-  const [shootoutRounds, setShootoutRounds] = useState<ShootoutShot[]>([
-    { round: 1, whiteResult: 'goal', darkResult: 'goal', whiteCap: 2, darkCap: 2 },
-    { round: 2, whiteResult: 'goal', darkResult: 'miss', whiteCap: 3, darkCap: 3 },
-    { round: 3, whiteResult: 'pending', darkResult: 'pending', whiteCap: 4, darkCap: 4 },
-    { round: 4, whiteResult: 'pending', darkResult: 'pending', whiteCap: 5, darkCap: 5 },
-    { round: 5, whiteResult: 'pending', darkResult: 'pending', whiteCap: 6, darkCap: 6 },
-  ]);
+  const [shootoutRounds, setShootoutRounds] = useState<ShootoutShot[]>(
+    initialMirror?.shootoutRounds || [
+      { round: 1, whiteResult: 'goal', darkResult: 'goal', whiteCap: 2, darkCap: 2 },
+      { round: 2, whiteResult: 'goal', darkResult: 'miss', whiteCap: 3, darkCap: 3 },
+      { round: 3, whiteResult: 'pending', darkResult: 'pending', whiteCap: 4, darkCap: 4 },
+      { round: 4, whiteResult: 'pending', darkResult: 'pending', whiteCap: 5, darkCap: 5 },
+      { round: 5, whiteResult: 'pending', darkResult: 'pending', whiteCap: 6, darkCap: 6 },
+    ]
+  );
 
   // Modal for quick cap ejection
   const [showCapModal, setShowCapModal] = useState<'white' | 'dark' | null>(null);
 
   // Ruleset: High School (NFHS 30s only) vs. College / International (NCAA / World Aquatics 20s reset)
-  const [enable20sReset, setEnable20sReset] = useState<boolean>(true); // Default to NCAA/World Aquatics 20s/30s
+  const [enable20sReset, setEnable20sReset] = useState<boolean>(initialMirror?.enable20sReset ?? true);
 
   // Parent Volunteer UX: Simple 4-Button Shot-Clock Plunger Mode vs. Full Varsity Desk Mode
-  const [isSimpleVolunteerMode, setIsSimpleVolunteerMode] = useState<boolean>(false);
+  const [isSimpleVolunteerMode, setIsSimpleVolunteerMode] = useState<boolean>(
+    initialMirror?.isSimpleVolunteerMode ?? false
+  );
 
   // Phone Console Mode (Auto-Detect vs. Manual Switcher)
   const [deviceViewMode, setDeviceViewMode] = useState<'auto' | 'phone' | 'desktop'>('auto');
@@ -190,15 +207,109 @@ export default function App() {
   // 6-8 Sports Live Integration State
   const [sixEightMode, setSixEightMode] = useState<SixEightSyncMode>('cloud_live');
   const [active68Match, setActive68Match] = useState<SixEightMatchPreset>(PRESET_68_MATCHES[0]);
-  const [whiteRoster, setWhiteRoster] = useState<SixEightPlayer[]>(PRESET_68_MATCHES[0].whiteRoster);
-  const [darkRoster, setDarkRoster] = useState<SixEightPlayer[]>(PRESET_68_MATCHES[0].darkRoster);
-  const [sixEightEvents, setSixEightEvents] = useState<SixEightGameEvent[]>([]);
+  const [whiteRoster, setWhiteRoster] = useState<SixEightPlayer[]>(
+    initialMirror?.whiteRoster || PRESET_68_MATCHES[0].whiteRoster
+  );
+  const [darkRoster, setDarkRoster] = useState<SixEightPlayer[]>(
+    initialMirror?.darkRoster || PRESET_68_MATCHES[0].darkRoster
+  );
+  const [sixEightEvents, setSixEightEvents] = useState<SixEightGameEvent[]>(
+    initialMirror?.sixEightEvents || []
+  );
 
   // Undo History Stack (15-state full snapshot)
   const [undoStack, setUndoStack] = useState<ClockSnapshot[]>([]);
 
   // Bus Monitor Log
   const [busLog, setBusLog] = useState<Array<{ time: string; header: string; ascii: string; protocol: string }>>([]);
+
+  // Apply a restored match snapshot (from IndexedDB or Checkpoint)
+  const applyRestoredMatchState = useCallback((restored: PersistedMatchState) => {
+    setIsRunning(false);
+    setProtocol(restored.protocol || 'cts');
+    setEnable20sReset(restored.enable20sReset ?? true);
+    setIsSimpleVolunteerMode(restored.isSimpleVolunteerMode ?? false);
+    setGameTimeMs(restored.gameTimeMs);
+    setShotTimeMs(restored.shotTimeMs);
+    setPeriod(restored.period);
+    setTeamWhiteName(restored.teamWhiteName);
+    setTeamDarkName(restored.teamDarkName);
+    setScoreWhite(restored.scoreWhite);
+    setScoreDark(restored.scoreDark);
+    if (restored.quarterScores) setQuarterScores(restored.quarterScores);
+    if (restored.exclusions) setExclusions(restored.exclusions);
+    if (restored.timeoutsWhite) setTimeoutsWhite(restored.timeoutsWhite);
+    if (restored.timeoutsDark) setTimeoutsDark(restored.timeoutsDark);
+    if (restored.shootoutRounds) setShootoutRounds(restored.shootoutRounds);
+    if (restored.whiteRoster) setWhiteRoster(restored.whiteRoster);
+    if (restored.darkRoster) setDarkRoster(restored.darkRoster);
+    if (restored.sixEightEvents) setSixEightEvents(restored.sixEightEvents);
+  }, []);
+
+  // Verify IndexedDB on mount in case IndexedDB has a newer record than localStorage
+  useEffect(() => {
+    matchPersistence.loadFromIndexedDB().then((idbRecord) => {
+      if (idbRecord && (!initialMirror || idbRecord.savedAtMs > initialMirror.savedAtMs)) {
+        applyRestoredMatchState(idbRecord);
+      }
+    });
+  }, [initialMirror, applyRestoredMatchState]);
+
+  // Continuous 100ms Auto-Save to IndexedDB & LocalStorage Mirror + pagehide listener
+  useEffect(() => {
+    const payload = {
+      protocol,
+      enable20sReset,
+      isSimpleVolunteerMode,
+      gameTimeMs,
+      shotTimeMs,
+      period,
+      isRunning: false,
+      teamWhiteName,
+      teamDarkName,
+      scoreWhite,
+      scoreDark,
+      quarterScores,
+      exclusions,
+      timeoutsWhite,
+      timeoutsDark,
+      shootoutRounds,
+      whiteRoster,
+      darkRoster,
+      sixEightEvents,
+    };
+
+    void matchPersistence.saveLiveState(payload);
+
+    const handlePageHide = () => {
+      void matchPersistence.saveLiveState(payload);
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('beforeunload', handlePageHide);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handlePageHide);
+    };
+  }, [
+    protocol,
+    enable20sReset,
+    isSimpleVolunteerMode,
+    gameTimeMs,
+    shotTimeMs,
+    period,
+    teamWhiteName,
+    teamDarkName,
+    scoreWhite,
+    scoreDark,
+    quarterScores,
+    exclusions,
+    timeoutsWhite,
+    timeoutsDark,
+    shootoutRounds,
+    whiteRoster,
+    darkRoster,
+    sixEightEvents,
+  ]);
 
   // Subscribe to Web Bluetooth GATT notifications & connection state
   useEffect(() => {
@@ -221,7 +332,16 @@ export default function App() {
     });
   }, []);
 
-  // Sync score & period updates to physical BLE dongle when paired
+  // Sync score, period & clocks to physical BLE dongle when paired or auto-reconnected
+  const forceResyncBleHardware = useCallback(() => {
+    bleManager.sendProtocol(protocol);
+    bleManager.sendGameClock(gameTimeMs);
+    bleManager.sendShotClock(shotTimeMs);
+    bleManager.sendScores(scoreWhite, scoreDark, period);
+    if (isRunning) bleManager.sendStart();
+    else bleManager.sendStop();
+  }, [protocol, gameTimeMs, shotTimeMs, scoreWhite, scoreDark, period, isRunning]);
+
   useEffect(() => {
     if (bleStatus === 'connected') {
       bleManager.sendScores(scoreWhite, scoreDark, period);
@@ -733,7 +853,7 @@ export default function App() {
                 className={`flex items-center gap-1.5 text-[10px] px-2.5 py-0.5 rounded-full border font-mono font-bold transition cursor-pointer ${
                   bleStatus === 'connected'
                     ? 'bg-emerald-400/20 text-emerald-200 border-emerald-400/50 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                    : bleStatus === 'connecting'
+                    : bleStatus === 'connecting' || bleStatus === 'reconnecting'
                     ? 'bg-amber-400/20 text-amber-200 border-amber-400/50 animate-pulse'
                     : 'bg-cyan-400/20 hover:bg-cyan-400/30 text-cyan-200 border-cyan-300/40'
                 }`}
@@ -742,6 +862,8 @@ export default function App() {
                 <span>
                   {bleStatus === 'connected'
                     ? `${bleDeviceName || 'PoloBridge-Pro'} LIVE`
+                    : bleStatus === 'reconnecting'
+                    ? 'AUTO-RECONNECTING BLE...'
                     : bleStatus === 'connecting'
                     ? 'PAIRING BLE...'
                     : 'PAIR BLE DONGLE'}
@@ -770,16 +892,17 @@ export default function App() {
               {bleError ? (
                 <span className="text-amber-300">{bleError}</span>
               ) : (
-                <span>{enable20sReset ? 'NCAA / World Aquatics (20s/30s)' : 'NFHS High School (30s Only)'} &bull; iOS &amp; BLE Ready</span>
+                <span>{enable20sReset ? 'NCAA / World Aquatics (20s/30s)' : 'NFHS High School (30s Only)'} &bull; 100ms IndexedDB Auto-Saved</span>
               )}
             </div>
           </div>
         </div>
 
-        {/* View Switchers (Console, Landing Page, BOM Parts, 6-8 Sports, Mockups, OBS Overlay, Hardware Rack, Scoresheet) */}
+        {/* View Switchers (Console, Offline & IDB, USB Flasher, Auto-Finder, Landing Page, BOM Parts, 6-8 Sports, Mockups, OBS Overlay, Hardware Rack, Scoresheet) */}
         <div className="flex items-center gap-1 bg-sky-950/70 p-1 rounded-xl border border-cyan-400/30 shadow-inner overflow-x-auto">
           {[
             { id: 'console', label: 'Console', icon: Layers },
+            { id: 'offline', label: 'Offline & IDB', icon: Database },
             { id: 'flasher', label: 'USB Flasher & QC', icon: Zap },
             { id: 'tournament', label: 'Auto-Finder & Hub', icon: Compass },
             { id: 'landing', label: 'Product & ROI', icon: Rocket },
@@ -1982,6 +2105,54 @@ export default function App() {
 
         {/* VIEW J: WEBSERIAL ESP32-S3 FIRMWARE FLASHER & HARDWARE QC */}
         {activeTab === 'flasher' && <FirmwareFlasherPanel />}
+
+        {/* VIEW K: OFFLINE POOLSIDE RESILIENCE & INDEXEDDB PERSISTENCE VAULT */}
+        {activeTab === 'offline' && (
+          <OfflineResiliencePanel
+            currentMatchState={{
+              protocol,
+              enable20sReset,
+              isSimpleVolunteerMode,
+              gameTimeMs,
+              shotTimeMs,
+              period,
+              isRunning: false,
+              teamWhiteName,
+              teamDarkName,
+              scoreWhite,
+              scoreDark,
+              quarterScores,
+              exclusions,
+              timeoutsWhite,
+              timeoutsDark,
+              shootoutRounds,
+              whiteRoster,
+              darkRoster,
+              sixEightEvents,
+            }}
+            bleStatus={bleStatus}
+            bleDeviceName={bleDeviceName}
+            onRestoreMatchState={(restored) => {
+              sounds.playClick();
+              applyRestoredMatchState(restored);
+            }}
+            onResetToFreshMatch={() => {
+              sounds.playClick();
+              setIsRunning(false);
+              setGameTimeMs(8 * 60 * 1000);
+              setShotTimeMs(30 * 1000);
+              setPeriod(1);
+              setScoreWhite(0);
+              setScoreDark(0);
+              setQuarterScores({ white: [0, 0, 0, 0, 0, 0, 0], dark: [0, 0, 0, 0, 0, 0, 0] });
+              setExclusions([]);
+              setTimeoutsWhite({ full: 3, short: 1 });
+              setTimeoutsDark({ full: 3, short: 1 });
+              setUndoStack([]);
+            }}
+            onForceResyncBle={forceResyncBleHardware}
+          />
+        )}
 
       </main>
 

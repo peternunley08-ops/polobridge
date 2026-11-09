@@ -38,6 +38,7 @@ jobs:
           python3 tests/test_overdrive_qa_suite.py
           python3 tests/test_phone_version.py
           python3 tests/test_webserial_flasher.py
+          python3 tests/test_offline_persistence.py
 
       - name: Set up Node.js 20 LTS
         uses: actions/setup-node@v4

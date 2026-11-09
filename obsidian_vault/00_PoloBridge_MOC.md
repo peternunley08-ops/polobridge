@@ -23,6 +23,7 @@ updated: 2026-11-08
 4. **Sunlit Olympic Pool Design System & W3C Tokens**: [[04_Aquatic_Design_System]]
 5. **Phone Console, Haptic Feedback & Pocket Ergonomics**: [[05_Phone_Console_and_Haptics]]
 6. **WebSerial ESP32-S3 Flasher & Hardware QC**: [[06_WebSerial_Flasher_and_QC]]
+7. **Offline Resilience, Dual-Layer IndexedDB & BLE Auto-Reconnect**: [[07_Offline_Resilience_and_IndexedDB]]
 
 ## Installed 10-Skill Agentic Engineering Stack
 - `frontend-design` — Anti-slop Sunlit Olympic Pool UI architecture

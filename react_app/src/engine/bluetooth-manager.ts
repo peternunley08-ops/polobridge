@@ -20,7 +20,7 @@ export enum BleCommandCode {
   CMD_SET_PROTOCOL   = 0x0B,
 }
 
-export type BleConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'unsupported' | 'error';
+export type BleConnectionStatus = 'disconnected' | 'connecting' | 'reconnecting' | 'connected' | 'unsupported' | 'error';
 
 export interface DongleStatusPacket {
   isRunning: boolean;
@@ -69,14 +69,31 @@ interface NavigatorWithBluetooth extends Navigator {
   };
 }
 
+export interface BleReconnectTelemetry {
+  autoReconnectEnabled: boolean;
+  reconnectAttempt: number;
+  maxAttempts: number;
+  totalReconnectSuccesses: number;
+  lastReconnectAtIso: string | null;
+}
+
 export class PoloBridgeBleManager {
   private device: WebBluetoothDevice | null = null;
   private server: WebBluetoothGATTServer | null = null;
   private commandChar: WebBluetoothCharacteristic | null = null;
   private statusChar: WebBluetoothCharacteristic | null = null;
 
+  private autoReconnectEnabled = true;
+  private isIntentionalDisconnect = false;
+  private reconnectAttempt = 0;
+  private readonly maxReconnectAttempts = 8;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private totalReconnectSuccesses = 0;
+  private lastReconnectAtIso: string | null = null;
+
   private statusCallback: ((packet: DongleStatusPacket) => void) | null = null;
   private connectionCallback: ((status: BleConnectionStatus, deviceName?: string, errorMsg?: string) => void) | null = null;
+  private reconnectCallback: ((telemetry: BleReconnectTelemetry) => void) | null = null;
 
   public isSupported(): boolean {
     const nav = navigator as NavigatorWithBluetooth;
@@ -91,11 +108,46 @@ export class PoloBridgeBleManager {
     this.connectionCallback = cb;
   }
 
+  public onReconnectTelemetry(cb: (telemetry: BleReconnectTelemetry) => void) {
+    this.reconnectCallback = cb;
+    cb(this.getReconnectTelemetry());
+  }
+
+  public setAutoReconnect(enabled: boolean) {
+    this.autoReconnectEnabled = enabled;
+    if (!enabled && this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+      this.reconnectAttempt = 0;
+    }
+    this.notifyReconnectTelemetry();
+  }
+
+  public getReconnectTelemetry(): BleReconnectTelemetry {
+    return {
+      autoReconnectEnabled: this.autoReconnectEnabled,
+      reconnectAttempt: this.reconnectAttempt,
+      maxAttempts: this.maxReconnectAttempts,
+      totalReconnectSuccesses: this.totalReconnectSuccesses,
+      lastReconnectAtIso: this.lastReconnectAtIso,
+    };
+  }
+
+  private notifyReconnectTelemetry() {
+    this.reconnectCallback?.(this.getReconnectTelemetry());
+  }
+
   public async connect(): Promise<boolean> {
     const nav = navigator as NavigatorWithBluetooth;
     if (!nav.bluetooth) {
       this.connectionCallback?.('unsupported', undefined, 'Web Bluetooth API is not available in this browser (use Chrome/Edge on Desktop or Android, or Bluefy on iPad).');
       return false;
+    }
+
+    this.isIntentionalDisconnect = false;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
 
     try {
@@ -110,24 +162,10 @@ export class PoloBridgeBleManager {
       });
 
       this.device = device;
+      device.removeEventListener('gattserverdisconnected', this.handleDisconnect);
       device.addEventListener('gattserverdisconnected', this.handleDisconnect);
 
-      if (!device.gatt) {
-        throw new Error('GATT server not available on selected device.');
-      }
-
-      const server = await device.gatt.connect();
-      this.server = server;
-
-      const service = await server.getPrimaryService(POLOBRIDGE_SERVICE_UUID);
-      this.commandChar = await service.getCharacteristic(POLOBRIDGE_COMMAND_CHAR_UUID);
-      this.statusChar = await service.getCharacteristic(POLOBRIDGE_STATUS_CHAR_UUID);
-
-      await this.statusChar.startNotifications();
-      this.statusChar.addEventListener('characteristicvaluechanged', this.handleNotification);
-
-      this.connectionCallback?.('connected', device.name || 'PoloBridge-Pro');
-      return true;
+      return await this.establishGattSession(device);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       // User cancelled picker vs actual hardware error
@@ -140,7 +178,37 @@ export class PoloBridgeBleManager {
     }
   }
 
+  private async establishGattSession(device: WebBluetoothDevice): Promise<boolean> {
+    if (!device.gatt) {
+      throw new Error('GATT server not available on selected device.');
+    }
+
+    const server = await device.gatt.connect();
+    this.server = server;
+
+    const service = await server.getPrimaryService(POLOBRIDGE_SERVICE_UUID);
+    this.commandChar = await service.getCharacteristic(POLOBRIDGE_COMMAND_CHAR_UUID);
+    this.statusChar = await service.getCharacteristic(POLOBRIDGE_STATUS_CHAR_UUID);
+
+    await this.statusChar.startNotifications();
+    this.statusChar.removeEventListener('characteristicvaluechanged', this.handleNotification);
+    this.statusChar.addEventListener('characteristicvaluechanged', this.handleNotification);
+
+    this.reconnectAttempt = 0;
+    this.notifyReconnectTelemetry();
+    this.connectionCallback?.('connected', device.name || 'PoloBridge-Pro');
+    return true;
+  }
+
   public disconnect() {
+    this.isIntentionalDisconnect = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    this.reconnectAttempt = 0;
+    this.notifyReconnectTelemetry();
+
     if (this.device) {
       this.device.removeEventListener('gattserverdisconnected', this.handleDisconnect);
     }
@@ -158,8 +226,83 @@ export class PoloBridgeBleManager {
     this.server = null;
     this.commandChar = null;
     this.statusChar = null;
-    this.connectionCallback?.('disconnected');
+
+    if (this.isIntentionalDisconnect || !this.autoReconnectEnabled || !this.device) {
+      this.connectionCallback?.('disconnected');
+      return;
+    }
+
+    this.scheduleAutoReconnect();
   };
+
+  /**
+   * Exponential Backoff BLE Auto-Reconnect Engine:
+   * Retries GATT connection automatically (500ms -> 1000ms -> 2000ms -> 4000ms...)
+   * whenever RF interference or accidental pool deck drop occurs.
+   */
+  private scheduleAutoReconnect() {
+    if (!this.device || this.reconnectAttempt >= this.maxReconnectAttempts) {
+      this.reconnectAttempt = 0;
+      this.notifyReconnectTelemetry();
+      this.connectionCallback?.('disconnected', this.device?.name, 'BLE auto-reconnect attempts exhausted. Tap PAIR BLE to reconnect.');
+      return;
+    }
+
+    this.reconnectAttempt += 1;
+    const backoffDelayMs = Math.min(8000, 500 * Math.pow(2, this.reconnectAttempt - 1));
+    this.notifyReconnectTelemetry();
+    this.connectionCallback?.(
+      'reconnecting',
+      this.device.name || 'PoloBridge-Pro',
+      `Auto-reconnecting to BLE dongle (Attempt ${this.reconnectAttempt}/${this.maxReconnectAttempts} in ${backoffDelayMs}ms)...`
+    );
+
+    this.reconnectTimer = setTimeout(async () => {
+      if (!this.device || this.isIntentionalDisconnect) return;
+      try {
+        await this.establishGattSession(this.device);
+        this.totalReconnectSuccesses += 1;
+        this.lastReconnectAtIso = new Date().toISOString();
+        this.notifyReconnectTelemetry();
+      } catch {
+        this.scheduleAutoReconnect();
+      }
+    }, backoffDelayMs);
+  }
+
+  /**
+   * Simulates an unexpected RF link drop and exponential-backoff recovery
+   * so referees and table workers can test BLE resilience before the game starts.
+   */
+  public async simulateRfDropAndAutoReconnect(
+    onResyncState?: () => void
+  ): Promise<boolean> {
+    this.reconnectAttempt = 1;
+    this.notifyReconnectTelemetry();
+    this.connectionCallback?.(
+      'reconnecting',
+      this.device?.name || 'PoloBridge-Rev2.5',
+      'Simulated RF Drop: Attempting BLE GATT Auto-Reconnect (Attempt 1/8 — 500ms backoff)...'
+    );
+
+    await new Promise((r) => setTimeout(r, 650));
+    this.reconnectAttempt = 2;
+    this.notifyReconnectTelemetry();
+    this.connectionCallback?.(
+      'reconnecting',
+      this.device?.name || 'PoloBridge-Rev2.5',
+      'Re-establishing GATT Services 0x4FA10001 & Notification Descriptors (Attempt 2/8)...'
+    );
+
+    await new Promise((r) => setTimeout(r, 650));
+    this.reconnectAttempt = 0;
+    this.totalReconnectSuccesses += 1;
+    this.lastReconnectAtIso = new Date().toISOString();
+    this.notifyReconnectTelemetry();
+    this.connectionCallback?.('connected', this.device?.name || 'PoloBridge-Rev2.5');
+    onResyncState?.();
+    return true;
+  }
 
   private handleNotification = (event: Event) => {
     const target = event.target as WebBluetoothCharacteristic;

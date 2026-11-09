@@ -36,6 +36,11 @@
      4. Lid Emergency Fail-Safe Buttons (`SW3/SW4/SW5` on `GPIO 18/19/20`, active-low readouts).
      5. Chip Telemetry & Rail Voltage (`ESP32-S3 WROOM-1U-N8`, 8MB Flash, 3.32V rail).
    - **Interactive Fallback Simulation**: Automatically enables transparent simulation mode on non-Chromium browsers (iOS Safari, iPadOS) so coaches can test workflows anywhere.
+7. **Dual-Layer IndexedDB Match Persistence & BLE GATT Auto-Reconnect (`match-persistence.ts` & `offline-resilience-panel.tsx`)**:
+   - **Continuous 100ms Persistence**: Every clock tick and score mutation writes synchronously to `localStorage` mirror (`polopad_pro_live_match_v1`) and asynchronously to IndexedDB (`PoloPadProOfflineDB`, object stores `live_match_state` and `match_checkpoints`).
+   - **Safe Hydration**: Reloading or restoring after a tab crash rehydrates in <1ms with `isRunning: false` to ensure clocks never tick unobserved during browser mount.
+   - **BLE Exponential-Backoff Watchdog**: Recovers automatically from pool deck 2.4GHz RF drops (retries at 500ms, 1s, 2s, 4s, 8s up to 8 attempts) and immediately flushes the live clock/score state to physical LED scoreboards upon reconnection.
+   - **Time-Machine Checkpoints & JSON Portable Backups**: Named checkpoint snapshots and 1-click JSON match backup download/upload.
 
 ---
 

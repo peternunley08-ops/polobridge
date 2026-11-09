@@ -94,6 +94,18 @@ class TestPlaywrightE2EProductionBundle(unittest.TestCase):
                 break
         self.assertTrue(found_phone_tokens, "PhoneConsole plungers must be compiled into production bundle")
 
+    def test_05_offline_persistence_and_indexeddb_bundle(self):
+        assets_dir = os.path.join(DIST_DIR, "assets")
+        js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
+        found_idb_tokens = False
+        for jf in js_files:
+            with open(os.path.join(assets_dir, jf), encoding="utf-8") as f:
+                content = f.read()
+            if "PoloPadProOfflineDB" in content and "live_match_state" in content:
+                found_idb_tokens = True
+                break
+        self.assertTrue(found_idb_tokens, "IndexedDB match persistence engine must be compiled into production bundle")
+
 
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromModule(__import__(__name__))
