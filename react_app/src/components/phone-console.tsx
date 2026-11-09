@@ -38,6 +38,7 @@ export interface PhoneConsoleProps {
   teamDarkName: string;
   protocol: 'cts' | 'daktronics';
   enable20sReset: boolean;
+  onToggle20sReset?: () => void;
   bleStatus: BleConnectionStatus;
   bleDeviceName: string;
   bleError: string | null;
@@ -77,6 +78,7 @@ export default function PhoneConsole(props: PhoneConsoleProps) {
     teamDarkName,
     protocol,
     enable20sReset,
+    onToggle20sReset,
     bleStatus,
     bleDeviceName,
     bleError,
@@ -226,10 +228,27 @@ export default function PhoneConsole(props: PhoneConsoleProps) {
           </span>
         </div>
 
-        {/* Center: Ruleset Indicator */}
-        <div className="hidden xs:flex items-center gap-1 text-[10px] font-mono text-cyan-200/90 font-bold">
-          <span>{enable20sReset ? 'NCAA 20s' : 'HS 30s'}</span>
-        </div>
+        {/* Center: Ruleset Toggle (NCAA 20s/30s vs NFHS 30s Only) */}
+        {onToggle20sReset ? (
+          <button
+            onClick={() => {
+              phoneHaptics.trigger('tap');
+              onToggle20sReset();
+            }}
+            className={`px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold border transition cursor-pointer flex items-center gap-1 ${
+              enable20sReset
+                ? 'bg-amber-400/25 text-amber-200 border-amber-300/40 hover:bg-amber-400/35'
+                : 'bg-emerald-400/25 text-emerald-200 border-emerald-300/40 hover:bg-emerald-400/35'
+            }`}
+            title="Tap to toggle: NCAA (20s & 30s Resets) vs NFHS High School (30s Reset Only)"
+          >
+            <span>{enable20sReset ? 'NCAA 20s/30s' : 'NFHS 30s ONLY'}</span>
+          </button>
+        ) : (
+          <div className="hidden xs:flex items-center gap-1 text-[10px] font-mono text-cyan-200/90 font-bold">
+            <span>{enable20sReset ? 'NCAA 20s' : 'HS 30s'}</span>
+          </div>
+        )}
 
         {/* Right Tools: Auto-Finder, WakeLock & Switch to iPad */}
         <div className="flex items-center gap-1">
@@ -486,34 +505,54 @@ export default function PhoneConsole(props: PhoneConsoleProps) {
             </div>
           </button>
 
-          {/* F. DUAL SHOT RESET PLUNGERS (SIDE BY SIDE 3D BUTTONS) */}
-          <div className="grid grid-cols-2 gap-2 min-h-[84px] xs:min-h-[92px]">
-            {/* 30s Full Reset Plunger */}
+          {/* F. DYNAMIC SHOT RESET PLUNGER(S) — 20s GOES AWAY IN 30s ONLY MODE */}
+          {enable20sReset ? (
+            <div className="grid grid-cols-2 gap-2 min-h-[84px] xs:min-h-[92px]">
+              {/* 30s Full Reset Plunger */}
+              <button
+                onClick={handleReset30}
+                className="rounded-2xl p-3 flex flex-col items-center justify-center gap-1 border-t-2 border-white/60 bg-gradient-to-b from-teal-300 via-emerald-400 to-emerald-600 text-sky-950 shadow-[0_6px_0_#115e59,0_12px_20px_rgba(16,185,129,0.3)] active:translate-y-1 transition cursor-pointer"
+              >
+                <div className="text-2xl sm:text-3xl font-black font-mono leading-none">
+                  30s RESET
+                </div>
+                <div className="text-[10px] font-mono font-bold uppercase tracking-tight text-sky-950/90 text-center leading-none">
+                  Turnover &bull; Goal
+                </div>
+              </button>
+
+              {/* 20s Rebound / Exclusion Reset Plunger */}
+              <button
+                onClick={handleReset20}
+                className="rounded-2xl p-3 flex flex-col items-center justify-center gap-1 border-t-2 border-white/60 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 text-sky-950 shadow-[0_6px_0_#92400e,0_12px_20px_rgba(245,158,11,0.3)] active:translate-y-1 transition cursor-pointer"
+              >
+                <div className="text-2xl sm:text-3xl font-black font-mono leading-none">
+                  20s RESET
+                </div>
+                <div className="text-[10px] font-mono font-bold uppercase tracking-tight text-sky-950/90 text-center leading-none">
+                  Rebound &bull; Excl
+                </div>
+              </button>
+            </div>
+          ) : (
+            /* SINGLE GIANT FULL-WIDTH 30s PLUNGER (HIGH SCHOOL NFHS MODE — 20s GOES AWAY) */
             <button
               onClick={handleReset30}
-              className="rounded-2xl p-3 flex flex-col items-center justify-center gap-1 border-t-2 border-white/60 bg-gradient-to-b from-teal-300 via-emerald-400 to-emerald-600 text-sky-950 shadow-[0_6px_0_#115e59,0_12px_20px_rgba(16,185,129,0.3)] active:translate-y-1 transition cursor-pointer"
+              className="w-full min-h-[84px] xs:min-h-[92px] rounded-2xl p-3.5 flex items-center justify-between px-5 border-t-2 border-white/60 bg-gradient-to-b from-teal-300 via-emerald-400 to-emerald-600 text-sky-950 shadow-[0_6px_0_#115e59,0_14px_24px_rgba(16,185,129,0.35)] active:translate-y-1 transition cursor-pointer"
             >
-              <div className="text-2xl sm:text-3xl font-black font-mono leading-none">
-                30s RESET
+              <div className="flex flex-col text-left">
+                <div className="text-2xl sm:text-3xl font-black font-mono leading-none">
+                  30s FULL RESET
+                </div>
+                <div className="text-[10px] sm:text-xs font-mono font-bold uppercase tracking-tight text-sky-950/90 mt-1">
+                  Turnover &bull; Goal &bull; All Resets 30s
+                </div>
               </div>
-              <div className="text-[10px] font-mono font-bold uppercase tracking-tight text-sky-950/90 text-center leading-none">
-                Turnover &bull; Goal
-              </div>
+              <span className="text-[10px] font-mono font-extrabold uppercase px-2.5 py-1 rounded-full bg-sky-950/20 border border-sky-950/30">
+                NFHS 30s ONLY
+              </span>
             </button>
-
-            {/* 20s Rebound / Exclusion Reset Plunger */}
-            <button
-              onClick={handleReset20}
-              className="rounded-2xl p-3 flex flex-col items-center justify-center gap-1 border-t-2 border-white/60 bg-gradient-to-b from-amber-300 via-amber-400 to-amber-600 text-sky-950 shadow-[0_6px_0_#92400e,0_12px_20px_rgba(245,158,11,0.3)] active:translate-y-1 transition cursor-pointer"
-            >
-              <div className="text-2xl sm:text-3xl font-black font-mono leading-none">
-                20s RESET
-              </div>
-              <div className="text-[10px] font-mono font-bold uppercase tracking-tight text-sky-950/90 text-center leading-none">
-                Rebound &bull; Excl
-              </div>
-            </button>
-          </div>
+          )}
 
           {/* G. QUICK ACTION BAR: HORN, EXCLUSION, TIMEOUT, UNDO */}
           <div className="grid grid-cols-4 gap-1.5 pt-0.5">
@@ -650,23 +689,36 @@ export default function PhoneConsole(props: PhoneConsoleProps) {
             </div>
           </div>
 
-          {/* Right Thumb Pillar: 30s & 20s Reset Plungers + Undo */}
+          {/* Right Thumb Pillar: Dynamic Shot Reset Plunger(s) + Undo */}
           <div className="flex flex-col gap-2">
-            <button
-              onClick={handleReset30}
-              className="flex-1 rounded-2xl p-2 flex flex-col items-center justify-center gap-0.5 border-t-2 border-white/60 bg-gradient-to-b from-teal-300 to-emerald-600 text-sky-950 shadow-[0_5px_0_#115e59] active:translate-y-1 transition cursor-pointer"
-            >
-              <span className="text-lg sm:text-xl font-black font-mono leading-none">30s RESET</span>
-              <span className="text-[9px] font-bold uppercase opacity-85">Turnover</span>
-            </button>
+            {enable20sReset ? (
+              <>
+                <button
+                  onClick={handleReset30}
+                  className="flex-1 rounded-2xl p-2 flex flex-col items-center justify-center gap-0.5 border-t-2 border-white/60 bg-gradient-to-b from-teal-300 to-emerald-600 text-sky-950 shadow-[0_5px_0_#115e59] active:translate-y-1 transition cursor-pointer"
+                >
+                  <span className="text-lg sm:text-xl font-black font-mono leading-none">30s RESET</span>
+                  <span className="text-[9px] font-bold uppercase opacity-85">Turnover</span>
+                </button>
 
-            <button
-              onClick={handleReset20}
-              className="flex-1 rounded-2xl p-2 flex flex-col items-center justify-center gap-0.5 border-t-2 border-white/60 bg-gradient-to-b from-amber-300 to-amber-600 text-sky-950 shadow-[0_5px_0_#92400e] active:translate-y-1 transition cursor-pointer"
-            >
-              <span className="text-lg sm:text-xl font-black font-mono leading-none">20s RESET</span>
-              <span className="text-[9px] font-bold uppercase opacity-85">Rebound</span>
-            </button>
+                <button
+                  onClick={handleReset20}
+                  className="flex-1 rounded-2xl p-2 flex flex-col items-center justify-center gap-0.5 border-t-2 border-white/60 bg-gradient-to-b from-amber-300 to-amber-600 text-sky-950 shadow-[0_5px_0_#92400e] active:translate-y-1 transition cursor-pointer"
+                >
+                  <span className="text-lg sm:text-xl font-black font-mono leading-none">20s RESET</span>
+                  <span className="text-[9px] font-bold uppercase opacity-85">Rebound</span>
+                </button>
+              </>
+            ) : (
+              /* SINGLE GIANT 30s PLUNGER IN LANDSCAPE WHEN 20s IS DISABLED */
+              <button
+                onClick={handleReset30}
+                className="flex-1 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 border-t-2 border-white/60 bg-gradient-to-b from-teal-300 to-emerald-600 text-sky-950 shadow-[0_5px_0_#115e59] active:translate-y-1 transition cursor-pointer"
+              >
+                <span className="text-2xl font-black font-mono leading-none">30s RESET</span>
+                <span className="text-[9px] font-bold uppercase opacity-85">All Resets 30s</span>
+              </button>
+            )}
 
             <button
               onClick={handleUndoWithHaptic}

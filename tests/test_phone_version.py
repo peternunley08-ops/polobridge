@@ -83,6 +83,17 @@ class TestPhoneVersionArchitecture(unittest.TestCase):
         self.assertIn("isPhoneMode", app_code)
         self.assertIn("deviceViewMode", app_code)
         self.assertIn("<PhoneConsole", app_code)
+        self.assertIn("onToggle20sReset", app_code)
+        self.assertIn("setExclusions([]);", app_code, "reset30 must release active exclusions on turnover per Rule WP 21")
+
+    def test_05_dynamic_20s_reset_visibility_and_turnover_release(self):
+        with open(self.phone_console_path, encoding="utf-8") as f:
+            code = f.read()
+
+        # Check enable20sReset conditional hiding logic in phone console
+        self.assertIn("enable20sReset ?", code)
+        self.assertIn("NFHS 30s ONLY", code)
+        self.assertIn("onToggle20sReset", code)
 
 
 if __name__ == "__main__":

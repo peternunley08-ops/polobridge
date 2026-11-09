@@ -280,6 +280,9 @@ export default function App() {
     sounds.playClick();
     pushSnapshot();
     setShotTimeMs(30 * 1000);
+    // Rule WP 21: A 30s reset indicates a Turnover / Change of Possession.
+    // Defending team's active 20s exclusions are automatically released on turnover.
+    setExclusions([]);
     bleManager.sendReset30();
   }, [pushSnapshot]);
 
@@ -901,6 +904,10 @@ export default function App() {
               teamDarkName={teamDarkName}
               protocol={protocol}
               enable20sReset={enable20sReset}
+              onToggle20sReset={() => {
+                sounds.playClick();
+                setEnable20sReset(prev => !prev);
+              }}
               bleStatus={bleStatus}
               bleDeviceName={bleDeviceName}
               bleError={bleError}
