@@ -12,6 +12,7 @@
  */
 
 import { SixEightPlayer, SixEightGameEvent } from './six-eight-sports';
+import { TeamRoster, MatchEventLogEntry } from './roster-manager';
 
 export const IDB_DATABASE_NAME = 'PoloPadProOfflineDB';
 export const IDB_DATABASE_VERSION = 1;
@@ -57,6 +58,9 @@ export interface PersistedMatchState {
   whiteRoster: SixEightPlayer[];
   darkRoster: SixEightPlayer[];
   sixEightEvents: SixEightGameEvent[];
+  digitalWhiteRoster?: TeamRoster;
+  digitalBlueRoster?: TeamRoster;
+  digitalEventLog?: MatchEventLogEntry[];
   totalSavesCount: number;
 }
 

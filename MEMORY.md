@@ -41,6 +41,10 @@
    - **Safe Hydration**: Reloading or restoring after a tab crash rehydrates in <1ms with `isRunning: false` to ensure clocks never tick unobserved during browser mount.
    - **BLE Exponential-Backoff Watchdog**: Recovers automatically from pool deck 2.4GHz RF drops (retries at 500ms, 1s, 2s, 4s, 8s up to 8 attempts) and immediately flushes the live clock/score state to physical LED scoreboards upon reconnection.
    - **Time-Machine Checkpoints & JSON Portable Backups**: Named checkpoint snapshots and 1-click JSON match backup download/upload.
+8. **Digital Scoresheet, Custom Team Rosters & Rule WP 22.3 Cap-Out (`roster-manager.ts` & `digital-scoresheet-panel.tsx`)**:
+   - **Cap #1–20 Attribution**: Tracks individual goals by quarter, goalie saves, personal fouls (`E`, `P`, `MAM`), timeouts, and sprints for White and Blue teams.
+   - **Rule WP 22.3 Cap-Out Guardrail**: Automatically flags and rolls players on their 3rd personal foul, alerting the desk and locking further scoring actions for that cap number.
+   - **Multi-Format Export**: 1-Click Print / PDF Scoresheet formatted for Letter/A4 Landscape matching USA Water Polo / NFHS official forms, CSV Box Score download, and clipboard summary generator.
 
 ---
 

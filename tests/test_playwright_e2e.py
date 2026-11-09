@@ -106,6 +106,18 @@ class TestPlaywrightE2EProductionBundle(unittest.TestCase):
                 break
         self.assertTrue(found_idb_tokens, "IndexedDB match persistence engine must be compiled into production bundle")
 
+    def test_06_digital_scoresheet_bundle(self):
+        assets_dir = os.path.join(DIST_DIR, "assets")
+        js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
+        found_scoresheet = False
+        for jf in js_files:
+            with open(os.path.join(assets_dir, jf), encoding="utf-8") as f:
+                content = f.read()
+            if "Digital Scoresheet" in content and "USAWP" in content:
+                found_scoresheet = True
+                break
+        self.assertTrue(found_scoresheet, "Digital scoresheet panel must be compiled into production bundle")
+
 
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromModule(__import__(__name__))

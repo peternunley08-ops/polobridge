@@ -14,6 +14,8 @@ import TournamentHubPanel from './components/tournament-hub-panel';
 import PhoneConsole from './components/phone-console';
 import FirmwareFlasherPanel from './components/firmware-flasher-panel';
 import OfflineResiliencePanel from './components/offline-resilience-panel';
+import { DigitalScoresheetPanel } from './components/digital-scoresheet-panel';
+import { TeamRoster, MatchEventLogEntry, createDefaultRoster } from './engine/roster-manager';
 import { bleManager, BleConnectionStatus } from './engine/bluetooth-manager';
 import { matchPersistence, PersistedMatchState } from './engine/match-persistence';
 import {
@@ -217,6 +219,19 @@ export default function App() {
     initialMirror?.sixEightEvents || []
   );
 
+  // Custom Team Rosters & Digital Scoresheet State
+  const [digitalWhiteRoster, setDigitalWhiteRoster] = useState<TeamRoster>(() => {
+    if (initialMirror?.digitalWhiteRoster) return initialMirror.digitalWhiteRoster;
+    return createDefaultRoster(initialMirror?.teamWhiteName || 'USA Men', 'white');
+  });
+  const [digitalBlueRoster, setDigitalBlueRoster] = useState<TeamRoster>(() => {
+    if (initialMirror?.digitalBlueRoster) return initialMirror.digitalBlueRoster;
+    return createDefaultRoster(initialMirror?.teamDarkName || 'Hungary', 'blue');
+  });
+  const [digitalEventLog, setDigitalEventLog] = useState<MatchEventLogEntry[]>(
+    initialMirror?.digitalEventLog || []
+  );
+
   // Undo History Stack (15-state full snapshot)
   const [undoStack, setUndoStack] = useState<ClockSnapshot[]>([]);
 
@@ -244,6 +259,9 @@ export default function App() {
     if (restored.whiteRoster) setWhiteRoster(restored.whiteRoster);
     if (restored.darkRoster) setDarkRoster(restored.darkRoster);
     if (restored.sixEightEvents) setSixEightEvents(restored.sixEightEvents);
+    if (restored.digitalWhiteRoster) setDigitalWhiteRoster(restored.digitalWhiteRoster);
+    if (restored.digitalBlueRoster) setDigitalBlueRoster(restored.digitalBlueRoster);
+    if (restored.digitalEventLog) setDigitalEventLog(restored.digitalEventLog);
   }, []);
 
   // Verify IndexedDB on mount in case IndexedDB has a newer record than localStorage
@@ -277,6 +295,9 @@ export default function App() {
       whiteRoster,
       darkRoster,
       sixEightEvents,
+      digitalWhiteRoster,
+      digitalBlueRoster,
+      digitalEventLog,
     };
 
     void matchPersistence.saveLiveState(payload);
@@ -309,6 +330,9 @@ export default function App() {
     whiteRoster,
     darkRoster,
     sixEightEvents,
+    digitalWhiteRoster,
+    digitalBlueRoster,
+    digitalEventLog,
   ]);
 
   // Subscribe to Web Bluetooth GATT notifications & connection state
@@ -1894,157 +1918,40 @@ export default function App() {
           </div>
         )}
 
-        {/* VIEW F: OFFICIAL MATCH SCORESHEET (LIVE DATA + PRINTABLE) */}
+        {/* VIEW F: OFFICIAL MATCH SCORESHEET & TEAM ROSTERS (USAWP / NFHS) */}
         {activeTab === 'scoresheet' && (
-          <div className="flex-1 p-8 flex flex-col items-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-600/30 via-sky-900 to-indigo-950 overflow-y-auto">
-            <div className="w-full max-w-4xl p-8 rounded-2xl bg-white text-slate-900 shadow-2xl space-y-6 print:p-0 print:border-0 print:shadow-none">
-              
-              <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4">
-                <div>
-                  <h1 className="text-2xl font-black tracking-tight">USA WATER POLO / WORLD AQUATICS / 6-8 SPORTS</h1>
-                  <h2 className="text-sm font-bold text-slate-600 uppercase tracking-wider">
-                    Official Match Scoresheet &bull; Game ID: {active68Match.gameId} &bull; {active68Match.tournament}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => window.print()}
-                  className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition print:hidden cursor-pointer"
-                >
-                  <Printer size={14} />
-                  <span>Print Sheet (PDF)</span>
-                </button>
-              </div>
-
-              {/* Match Header */}
-              <div className="grid grid-cols-4 gap-4 p-4 rounded-xl bg-slate-100 border border-slate-300 font-mono text-xs">
-                <div>
-                  <span className="text-slate-500 block">WHITE TEAM:</span>
-                  <span className="font-bold text-base">{teamWhiteName}</span>
-                  <span className="text-[10px] text-slate-500 block">Timeouts Left: {timeoutsWhite.full}F / {timeoutsWhite.short}S</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">DARK TEAM:</span>
-                  <span className="font-bold text-base">{teamDarkName}</span>
-                  <span className="text-[10px] text-slate-500 block">Timeouts Left: {timeoutsDark.full}F / {timeoutsDark.short}S</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">VENUE:</span>
-                  <span className="font-bold text-xs">{active68Match.venue}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block">CURRENT / FINAL SCORE:</span>
-                  <span className="font-bold text-xl text-blue-700">{scoreWhite} - {scoreDark}</span>
-                </div>
-              </div>
-
-              {/* Live Quarter Progression Table */}
-              <div>
-                <h3 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-2 font-mono">Live Period Scoring Progression</h3>
-                <table className="w-full text-xs font-mono border-collapse border border-slate-300">
-                  <thead>
-                    <tr className="bg-slate-200">
-                      <th className="border border-slate-300 p-2 text-left">Team</th>
-                      <th className="border border-slate-300 p-2 text-center">Q1</th>
-                      <th className="border border-slate-300 p-2 text-center">Q2</th>
-                      <th className="border border-slate-300 p-2 text-center">Q3</th>
-                      <th className="border border-slate-300 p-2 text-center">Q4</th>
-                      <th className="border border-slate-300 p-2 text-center">OT1</th>
-                      <th className="border border-slate-300 p-2 text-center">OT2</th>
-                      <th className="border border-slate-300 p-2 text-center">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td className="border border-slate-300 p-2 font-bold">{teamWhiteName} (White)</td>
-                      {[0, 1, 2, 3, 4, 5].map(i => (
-                        <td key={i} className="border border-slate-300 p-2 text-center">{quarterScores.white[i] ?? 0}</td>
-                      ))}
-                      <td className="border border-slate-300 p-2 text-center font-bold text-sm">{scoreWhite}</td>
-                    </tr>
-                    <tr>
-                      <td className="border border-slate-300 p-2 font-bold">{teamDarkName} (Dark)</td>
-                      {[0, 1, 2, 3, 4, 5].map(i => (
-                        <td key={i} className="border border-slate-300 p-2 text-center">{quarterScores.dark[i] ?? 0}</td>
-                      ))}
-                      <td className="border border-slate-300 p-2 text-center font-bold text-sm">{scoreDark}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Live Roster Box Scores (White & Dark) */}
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-600 mb-2 font-mono">{teamWhiteName} (White Caps) Box Score</h3>
-                  <table className="w-full text-[11px] font-mono border-collapse border border-slate-300">
-                    <thead>
-                      <tr className="bg-slate-100">
-                        <th className="border border-slate-300 p-1.5 text-center">#</th>
-                        <th className="border border-slate-300 p-1.5 text-left">Player</th>
-                        <th className="border border-slate-300 p-1.5 text-center">G</th>
-                        <th className="border border-slate-300 p-1.5 text-center">Fouls</th>
-                        <th className="border border-slate-300 p-1.5 text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {whiteRoster.map(p => (
-                        <tr key={p.cap}>
-                          <td className="border border-slate-300 p-1.5 text-center font-bold">{p.cap}</td>
-                          <td className="border border-slate-300 p-1.5">{p.name}</td>
-                          <td className="border border-slate-300 p-1.5 text-center font-bold">{p.goals}</td>
-                          <td className="border border-slate-300 p-1.5 text-center">{p.exclusions}/3</td>
-                          <td className="border border-slate-300 p-1.5 text-center font-bold text-rose-600">
-                            {p.exclusions >= 3 ? 'ROLLED' : 'OK'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div>
-                  <h3 className="font-bold text-xs uppercase tracking-wider text-slate-600 mb-2 font-mono">{teamDarkName} (Dark Caps) Box Score</h3>
-                  <table className="w-full text-[11px] font-mono border-collapse border border-slate-300">
-                    <thead>
-                      <tr className="bg-slate-100">
-                        <th className="border border-slate-300 p-1.5 text-center">#</th>
-                        <th className="border border-slate-300 p-1.5 text-left">Player</th>
-                        <th className="border border-slate-300 p-1.5 text-center">G</th>
-                        <th className="border border-slate-300 p-1.5 text-center">Fouls</th>
-                        <th className="border border-slate-300 p-1.5 text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {darkRoster.map(p => (
-                        <tr key={p.cap}>
-                          <td className="border border-slate-300 p-1.5 text-center font-bold">{p.cap}</td>
-                          <td className="border border-slate-300 p-1.5">{p.name}</td>
-                          <td className="border border-slate-300 p-1.5 text-center font-bold">{p.goals}</td>
-                          <td className="border border-slate-300 p-1.5 text-center">{p.exclusions}/3</td>
-                          <td className="border border-slate-300 p-1.5 text-center font-bold text-rose-600">
-                            {p.exclusions >= 3 ? 'ROLLED' : 'OK'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Sign-off */}
-              <div className="grid grid-cols-2 gap-8 pt-6 border-t border-slate-300 text-xs">
-                <div>
-                  <div className="border-b border-slate-400 pb-1 mb-1"></div>
-                  <span className="text-slate-500">Referee 1 Signature</span>
-                </div>
-                <div>
-                  <div className="border-b border-slate-400 pb-1 mb-1"></div>
-                  <span className="text-slate-500">Desk / Table Worker Signature</span>
-                </div>
-              </div>
-
-            </div>
-          </div>
+          <DigitalScoresheetPanel
+            whiteRoster={digitalWhiteRoster}
+            blueRoster={digitalBlueRoster}
+            onUpdateWhiteRoster={setDigitalWhiteRoster}
+            onUpdateBlueRoster={setDigitalBlueRoster}
+            eventLog={digitalEventLog}
+            onAddEventLog={(entry) => setDigitalEventLog(prev => [entry, ...prev])}
+            currentPeriod={period}
+            currentGameTime={formatMinSecTenths(gameTimeMs)}
+            whiteScoreByPeriod={quarterScores.white}
+            blueScoreByPeriod={quarterScores.dark}
+            onScoreIncrement={(team) => {
+              if (team === 'white') {
+                setScoreWhite(s => s + 1);
+                setQuarterScores(qs => {
+                  const next = [...qs.white];
+                  next[period - 1] = (next[period - 1] || 0) + 1;
+                  return { ...qs, white: next };
+                });
+              } else {
+                setScoreDark(s => s + 1);
+                setQuarterScores(qs => {
+                  const next = [...qs.dark];
+                  next[period - 1] = (next[period - 1] || 0) + 1;
+                  return { ...qs, dark: next };
+                });
+              }
+            }}
+            onAddExclusion={(team, capNumber) => {
+              addExclusion(team === 'white' ? 'white' : 'dark', capNumber);
+            }}
+          />
         )}
 
         {/* VIEW G: PRODUCT MOCKUPS GALLERY */}

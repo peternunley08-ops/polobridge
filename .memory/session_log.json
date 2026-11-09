@@ -19,6 +19,11 @@
   "sessions": [
     {
       "date": "2026-11-09",
+      "milestone": "Digital Scoresheet & Team Rosters (roster-manager.ts & digital-scoresheet-panel.tsx) with Cap #1-20 Individual Goal/Foul Tracking, Rule WP 22.3 Cap-Out Enforcement, and USAWP/NFHS Landscape Print/PDF & CSV Export",
+      "qa_status": "100% PASS (Scoresheet Tests 5/5 + Playwright E2E 6/6 + Persistence Tests 5/5 + Phone Tests 5/5 + Flasher Tests 4/4 + Rules 4/4 + DRC 5/5 + Code Review 4/4 + Black October 22/22)"
+    },
+    {
+      "date": "2026-11-09",
       "milestone": "Offline Resilience Vault (match-persistence.ts & offline-resilience-panel.tsx) with Continuous 100ms IndexedDB/localStorage Persistence, Zero-Data-Loss Safe Hydration, and BLE Exponential-Backoff Auto-Reconnect",
       "qa_status": "100% PASS (Persistence Tests 5/5 + Playwright E2E 5/5 + Phone Tests 5/5 + Flasher Tests 4/4 + Rules 4/4 + DRC 5/5 + Code Review 4/4 + Black October 21/21)"
     },
