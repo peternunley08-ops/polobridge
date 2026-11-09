@@ -28,8 +28,12 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Run World Aquatics / NFHS Rules & Rev 2.5 Hardware DRC Suite
+      - name: Run Black October Security Audit, Multi-Agent Code Review & Hardware DRC Suite
         run: |
+          python3 scripts/audit_skills_security.py
+          python3 scripts/context7_doc_inspector.py
+          python3 scripts/run_code_simplifier.py
+          python3 scripts/run_code_review.py
           python3 tests/test_rules_engine.py
           python3 tests/test_overdrive_qa_suite.py
 
@@ -45,6 +49,10 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      - name: Run Playwright E2E Production Bundle & Download Verification
+        run: |
+          python3 tests/test_playwright_e2e.py
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

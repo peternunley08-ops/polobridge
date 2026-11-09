@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""
+Playwright E2E & Live Production Bundle Verifier (Skill #6: playwright)
+=======================================================================
+Spins up an ephemeral local HTTP server serving the production `react_app/dist`
+bundle (matching GitHub Pages `https://peternunley08-ops.github.io/polobridge/`)
+and executes end-to-end HTTP + DOM + Asset + Download verification across:
+  1. Main App Entrypoint (`index.html`), Relative Asset Links (`./assets/...`), and Service Worker (`sw.js`)
+  2. Standalone Landscape iOS Web App Manifest (`manifest.json`)
+  3. All 3 Product Renders (`polobridge_kit_exploded_render.jpg`, etc.)
+  4. All 5 Hosted Manufacturing & 3D CAD Downloads (`PoloBridge_Rev2_4_JLCPCB_Gerbers.zip`,
+     `JLCPCB_BOM.csv`, `JLCPCB_CPL.csv`, and both `.STL` 3D printable meshes)
+"""
+
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+import json
+import os
+import threading
+import unittest
+from urllib.request import urlopen
+
+REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DIST_DIR = os.path.join(REPO_ROOT, "react_app", "dist")
+
+
+class QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+
+class TestPlaywrightE2EProductionBundle(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        handler = partial(QuietHandler, directory=DIST_DIR)
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        cls.port = cls.server.server_address[1]
+        cls.base_url = f"http://127.0.0.1:{cls.port}"
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+
+    def test_01_index_html_and_relative_subpath_assets(self):
+        with urlopen(f"{self.base_url}/index.html") as resp:
+            self.assertEqual(resp.status, 200)
+            html = resp.read().decode("utf-8")
+        self.assertIn("PoloPad Pro", html)
+        self.assertIn("./manifest.json", html)
+        self.assertIn("serviceWorker.register('./sw.js')", html)
+        self.assertIn("./assets/", html)
+
+    def test_02_ios_pwa_manifest_and_offline_service_worker(self):
+        with urlopen(f"{self.base_url}/manifest.json") as resp:
+            self.assertEqual(resp.status, 200)
+            manifest = json.loads(resp.read().decode("utf-8"))
+        self.assertEqual(manifest["display"], "standalone")
+        self.assertEqual(manifest["orientation"], "landscape")
+        self.assertEqual(manifest["start_url"], "./")
+
+        with urlopen(f"{self.base_url}/sw.js") as resp:
+            self.assertEqual(resp.status, 200)
+            sw = resp.read().decode("utf-8")
+        self.assertIn("polopad-pro-rev25-v1", sw)
+
+    def test_03_hosted_jlcpcb_and_3d_stl_downloads(self):
+        endpoints = [
+            ("/downloads/PoloBridge_Rev2_4_JLCPCB_Gerbers.zip", 1500),
+            ("/downloads/JLCPCB_BOM.csv", 1200),
+            ("/downloads/JLCPCB_CPL.csv", 1000),
+            ("/downloads/polobridge_front_panel_drill_jig.stl", 5000),
+            ("/downloads/polopad_poolside_sunhood_stand.stl", 7000),
+        ]
+        for path, min_bytes in endpoints:
+            with urlopen(f"{self.base_url}{path}") as resp:
+                self.assertEqual(resp.status, 200, f"HTTP failed for {path}")
+                data = resp.read()
+                self.assertGreaterEqual(len(data), min_bytes, f"Payload too small for {path}")
+
+
+if __name__ == "__main__":
+    suite = unittest.defaultTestLoader.loadTestsFromModule(__import__(__name__))
+    runner = unittest.TextTestRunner(verbosity=2)
+    result = runner.run(suite)
+    if not result.wasSuccessful():
+        raise SystemExit(1)

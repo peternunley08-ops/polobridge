@@ -1,0 +1,106 @@
+{
+  "nodes": [
+    {
+      "id": "node-moc",
+      "type": "text",
+      "x": -420,
+      "y": -220,
+      "width": 320,
+      "height": 160,
+      "color": "5",
+      "text": "# 🤽 PoloPad Pro (iOS PWA & SwiftUI)\n- **Live URL**: `peternunley08-ops.github.io/polobridge/`\n- **Modes**: Simple 4-Button Volunteer Mode + Full Varsity Desk\n- **Offline**: `sw.js` Service Worker\n- See [[00_PoloBridge_MOC]]"
+    },
+    {
+      "id": "node-ble",
+      "type": "text",
+      "x": -20,
+      "y": -220,
+      "width": 320,
+      "height": 160,
+      "color": "4",
+      "text": "# 📡 BLE 5.0 GATT + 10Hz Engine\n- **Service**: `4FA10001-B5A3-...`\n- **Command TX**: `4FA10002` (Start/Stop, 30s, 20s, Horn)\n- **Status RX**: `4FA10003` (13-byte 10Hz Telemetry)\n- See [[03_Firmware_and_Protocols]]"
+    },
+    {
+      "id": "node-hw",
+      "type": "text",
+      "x": 380,
+      "y": -220,
+      "width": 340,
+      "height": 180,
+      "color": "6",
+      "text": "# ⚡ PoloBridge Rev 2.5 PCB ($24-$49)\n- **RS-232 TX**: `GPIO 17` -> `ADuM1201` (2.5kV) -> `MAX3232E`\n- **3-Ch Pickle**: `GPIO 4/5/6` -> `U7/U8/U9 EL817S`\n- **105dB Piezo Horn**: `GPIO 7` -> `Q1 AO3400A`\n- **3 Lid Fail-Safe Buttons**: `GPIO 18/19/20`\n- See [[02_Rev25_Hardware_and_PCB]]"
+    },
+    {
+      "id": "node-deck",
+      "type": "text",
+      "x": 380,
+      "y": 40,
+      "width": 340,
+      "height": 150,
+      "color": "3",
+      "text": "# 🏟️ Pool Deck Scoreboards\n- **Colorado Time Systems**: System 6 / WA-3 (`9600 8-E-1`)\n- **Daktronics**: All Sport 5000 Code 4498 (`19200 8-N-1`)\n- **1/4\" Pickle Ports**: 150ms Opto Closures"
+    },
+    {
+      "id": "node-cad",
+      "type": "text",
+      "x": -20,
+      "y": 40,
+      "width": 320,
+      "height": 150,
+      "color": "2",
+      "text": "# 📐 3D Printable CAD (.STL)\n- `polobridge_front_panel_drill_jig.stl`\n- `polopad_poolside_sunhood_stand.stl` (25° Anti-Glare Visor)"
+    },
+    {
+      "id": "node-skills",
+      "type": "text",
+      "x": -420,
+      "y": 40,
+      "width": 320,
+      "height": 150,
+      "color": "1",
+      "text": "# 🛡️ 10-Skill Agentic QA Stack\n- `frontend-design` + `superpowers`\n- `code-review` + `context7` + `code-simplifier`\n- `playwright` + `claude-mem` + `skill-creator`"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "fromNode": "node-moc",
+      "fromSide": "right",
+      "toNode": "node-ble",
+      "toSide": "left",
+      "label": "WebBLE / CoreBluetooth (<4ms)"
+    },
+    {
+      "id": "edge-2",
+      "fromNode": "node-ble",
+      "fromSide": "right",
+      "toNode": "node-hw",
+      "toSide": "left",
+      "label": "ESP32-S3-WROOM-1U"
+    },
+    {
+      "id": "edge-3",
+      "fromNode": "node-hw",
+      "fromSide": "bottom",
+      "toNode": "node-deck",
+      "toSide": "top",
+      "label": "2.5kV Isolated RS-232 + 3-Ch Pickle"
+    },
+    {
+      "id": "edge-4",
+      "fromNode": "node-cad",
+      "fromSide": "right",
+      "toNode": "node-hw",
+      "toSide": "bottom",
+      "label": "Hammond 1554C2GYCL Enclosure"
+    },
+    {
+      "id": "edge-5",
+      "fromNode": "node-skills",
+      "fromSide": "top",
+      "toNode": "node-moc",
+      "toSide": "bottom",
+      "label": "CI + Black October Audit"
+    }
+  ]
+}
