@@ -36,6 +36,7 @@ jobs:
           python3 scripts/run_code_review.py
           python3 tests/test_rules_engine.py
           python3 tests/test_overdrive_qa_suite.py
+          python3 tests/test_phone_version.py
 
       - name: Set up Node.js 20 LTS
         uses: actions/setup-node@v4

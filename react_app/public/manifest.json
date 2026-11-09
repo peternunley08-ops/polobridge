@@ -4,7 +4,7 @@
   "description": "Dual-thumb iPadOS & Web Bluetooth water polo timing console for Colorado Time Systems (System 6 / WA-3) and Daktronics All Sport 5000 with 6-8 Sports Live Sync.",
   "start_url": "./",
   "display": "standalone",
-  "orientation": "landscape",
+  "orientation": "any",
   "background_color": "#0c4a6e",
   "theme_color": "#0284c7",
   "categories": ["sports", "utilities", "productivity"],

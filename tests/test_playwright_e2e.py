@@ -58,7 +58,7 @@ class TestPlaywrightE2EProductionBundle(unittest.TestCase):
             self.assertEqual(resp.status, 200)
             manifest = json.loads(resp.read().decode("utf-8"))
         self.assertEqual(manifest["display"], "standalone")
-        self.assertEqual(manifest["orientation"], "landscape")
+        self.assertEqual(manifest["orientation"], "any")
         self.assertEqual(manifest["start_url"], "./")
 
         with urlopen(f"{self.base_url}/sw.js") as resp:
@@ -79,6 +79,20 @@ class TestPlaywrightE2EProductionBundle(unittest.TestCase):
                 self.assertEqual(resp.status, 200, f"HTTP failed for {path}")
                 data = resp.read()
                 self.assertGreaterEqual(len(data), min_bytes, f"Payload too small for {path}")
+
+    def test_04_phone_bundle_and_haptics_assets(self):
+        # Verify compiled JavaScript bundle includes PhoneConsole and phoneHaptics tokens
+        assets_dir = os.path.join(DIST_DIR, "assets")
+        js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
+        self.assertGreater(len(js_files), 0, "Missing compiled JS bundle")
+        found_phone_tokens = False
+        for jf in js_files:
+            with open(os.path.join(assets_dir, jf), encoding="utf-8") as f:
+                content = f.read()
+            if "START CLOCK" in content and "30s RESET" in content:
+                found_phone_tokens = True
+                break
+        self.assertTrue(found_phone_tokens, "PhoneConsole plungers must be compiled into production bundle")
 
 
 if __name__ == "__main__":

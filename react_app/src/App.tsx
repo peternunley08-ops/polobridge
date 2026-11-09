@@ -4,13 +4,14 @@ import {
   Radio, Settings, FileText, Check, Copy, ExternalLink, 
   Plus, Minus, AlertTriangle, Printer, Layers, Clock,
   ArrowRight, Undo2, Award, Zap, Sparkles, Bluetooth, Trophy,
-  Cpu, Rocket, Timer, Keyboard, Compass
+  Cpu, Rocket, Timer, Keyboard, Compass, Smartphone
 } from 'lucide-react';
 import MockupsGallery from './components/mockups-gallery';
 import SixEightPanel from './components/six-eight-panel';
 import HardwareBomPanel from './components/hardware-bom-panel';
 import LandingPage from './components/landing-page';
 import TournamentHubPanel from './components/tournament-hub-panel';
+import PhoneConsole from './components/phone-console';
 import { bleManager, BleConnectionStatus } from './engine/bluetooth-manager';
 import {
   PRESET_68_MATCHES,
@@ -168,6 +169,23 @@ export default function App() {
   // Parent Volunteer UX: Simple 4-Button Shot-Clock Plunger Mode vs. Full Varsity Desk Mode
   const [isSimpleVolunteerMode, setIsSimpleVolunteerMode] = useState<boolean>(false);
 
+  // Phone Console Mode (Auto-Detect vs. Manual Switcher)
+  const [deviceViewMode, setDeviceViewMode] = useState<'auto' | 'phone' | 'desktop'>('auto');
+  const [isPhoneViewport, setIsPhoneViewport] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') return window.innerWidth < 768;
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsPhoneViewport(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isPhoneMode = deviceViewMode === 'phone' || (deviceViewMode === 'auto' && isPhoneViewport);
+
   // 6-8 Sports Live Integration State
   const [sixEightMode, setSixEightMode] = useState<SixEightSyncMode>('cloud_live');
   const [active68Match, setActive68Match] = useState<SixEightMatchPreset>(PRESET_68_MATCHES[0]);
@@ -280,6 +298,16 @@ export default function App() {
       return next;
     });
   };
+
+  const adjustGameTime = useCallback((deltaSeconds: number) => {
+    sounds.playClick();
+    pushSnapshot();
+    setGameTimeMs(prev => {
+      const next = Math.max(0, prev + deltaSeconds * 1000);
+      bleManager.sendGameClock(next);
+      return next;
+    });
+  }, [pushSnapshot]);
 
   const fireHornManual = useCallback((dur = 1200) => {
     sounds.playHorn(dur);
@@ -820,6 +848,23 @@ export default function App() {
             </button>
           </div>
 
+          {/* Phone vs. iPad/Desktop Layout Switcher */}
+          <button
+            onClick={() => {
+              sounds.playClick();
+              setDeviceViewMode(prev => (isPhoneMode ? 'desktop' : 'phone'));
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border font-mono font-bold text-xs transition cursor-pointer ${
+              isPhoneMode
+                ? 'bg-amber-400 text-sky-950 border-amber-300 shadow-md shadow-amber-400/25'
+                : 'bg-sky-950/80 text-cyan-200 hover:text-white border-cyan-400/30'
+            }`}
+            title="Toggle between Phone Controller and iPad/Desktop Chassis"
+          >
+            <Smartphone size={13} className={isPhoneMode ? 'text-sky-950' : 'text-cyan-300'} />
+            <span className="hidden sm:inline">{isPhoneMode ? 'Phone' : 'iPad'}</span>
+          </button>
+
           <button
             onMouseDown={() => fireHornManual(1400)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider transition shadow-lg cursor-pointer ${
@@ -839,8 +884,47 @@ export default function App() {
       {/* ======================================================== */}
       <main className="flex-1 flex overflow-hidden">
         
-        {/* VIEW A: DUAL-THUMB HANDHELD CONSOLE */}
+        {/* VIEW A: DUAL-THUMB HANDHELD CONSOLE (PHONE VIEW OR IPAD CHASSIS) */}
         {activeTab === 'console' && (
+          isPhoneMode ? (
+            <PhoneConsole
+              gameTimeMs={gameTimeMs}
+              shotTimeMs={shotTimeMs}
+              period={period}
+              isRunning={isRunning}
+              isBlanked={isBlanked}
+              scoreWhite={scoreWhite}
+              scoreDark={scoreDark}
+              teamWhiteName={teamWhiteName}
+              teamDarkName={teamDarkName}
+              protocol={protocol}
+              enable20sReset={enable20sReset}
+              bleStatus={bleStatus}
+              bleDeviceName={bleDeviceName}
+              bleError={bleError}
+              exclusions={exclusions}
+              undoStackLength={undoStack.length}
+              whiteRoster={whiteRoster}
+              darkRoster={darkRoster}
+              activeTimeout={activeTimeout}
+              onToggleStartStop={toggleStartStop}
+              onReset30={reset30}
+              onReset20={reset20}
+              onAdjustGameTime={adjustGameTime}
+              onAdjustShotTime={adjustShot}
+              onFireHorn={fireHornManual}
+              onUndo={handleUndo}
+              onScoreDelta={handleScoreDelta}
+              onSetPeriod={handleSelectPeriod}
+              onAddExclusion={addExclusion}
+              onReleaseExclusion={releaseExclusion}
+              onStartTimeout={handleCallTimeout}
+              onEndTimeout={() => setActiveTimeout(null)}
+              onToggleBle={handleToggleBlePair}
+              onSwitchToDesktopMode={() => setDeviceViewMode('desktop')}
+              onOpenAutoFinder={() => setActiveTab('tournament')}
+            />
+          ) : (
           <div className="flex-1 p-4 sm:p-6 flex items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/30 via-sky-800/90 to-blue-950 overflow-y-auto">
             
             {/* Handheld iPad Chassis — Vibrant Anodized Marine Sapphire */}
@@ -1517,8 +1601,8 @@ export default function App() {
               </div>
 
             </div>
-
           </div>
+          )
         )}
 
         {/* VIEW B: COMMERCIAL PRODUCT LANDING PAGE & ROI CALCULATOR */}

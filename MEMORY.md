@@ -14,7 +14,13 @@
 3. **Shot-Clock Expiration (`0.0s`) & Hardware Fail-Safe**:
    - Reaching `0.0s` on the shot clock automatically stops **both** Game and Shot clocks immediately and fires a `1500ms` violation horn.
    - Includes **3 waterproof emergency fail-safe buttons** (`SW3/SW4/SW5` on `GPIO 18/19/20`) on the Hammond `1554C2GYCL` enclosure lid so table workers can operate `Start/Stop`, `30s Reset`, and `20s Reset` even if the iPad battery dies mid-quarter.
-4. **Parent Volunteer UX**:
+4. **Parent Volunteer & Phone UX**:
+   - **Dedicated Phone Console (`phone-console.tsx`)**: Auto-detects phone viewports or manually toggles between **"📱 Phone"** and **"🖥️ iPad/Desktop"**.
+   - **Dual Phone Orientations**:
+     - **Portrait Mode ("One-Hand Pocket Controller")**: Hero full-width `START / STOP` plunger (80px+), side-by-side `30s` & `20s` plungers, Quick Action row (`Horn`, `Exclusion`, `Timeout`, `Undo`), and zero-scroll unscrollable layout for iPhone SE up to 16 Pro Max.
+     - **Landscape Mode ("Dual-Thumb Pocket Console")**: Left thumb `START / STOP` + `Horn`, Center clocks & scores, Right thumb `30s` + `20s` + `Undo`.
+   - **Poolside Haptic Vibration Engine (`phone-haptics.ts`)**: Custom tactile vibration pulses for start, stop, 30s reset, 20s reset, horn, and 0.0s violation.
+   - **Screen Wake-Lock API**: Keeps phone screen awake poolside throughout the match.
    - 1-Click toggle in the console header between **"Full Varsity Desk"** and **"Simple Volunteer (4-Button)"** mode (`80%` screen area plungers).
    - **1-Click Universal Pool Scoreboard Auto-Finder** (`tournament-hub-panel.tsx`) cycles through CTS (`9600 8-E-1`), Daktronics (`19200 8-N-1`), and 3-Ch Pickle pulses so volunteers never touch DIP switches or baud rates.
 5. **Commercial Pricing Tiers**:

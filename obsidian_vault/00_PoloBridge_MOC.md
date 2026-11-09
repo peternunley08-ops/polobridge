@@ -21,6 +21,7 @@ updated: 2026-11-08
 2. **Rev 2.5 Hardware, 2.5kV Isolation & 3D CAD**: [[02_Rev25_Hardware_and_PCB]]
 3. **ESP32-S3 Firmware, BLE GATT & Scoreboard Protocols**: [[03_Firmware_and_Protocols]]
 4. **Sunlit Olympic Pool Design System & W3C Tokens**: [[04_Aquatic_Design_System]]
+5. **Phone Console, Haptic Feedback & Pocket Ergonomics**: [[05_Phone_Console_and_Haptics]]
 
 ## Installed 10-Skill Agentic Engineering Stack
 - `frontend-design` — Anti-slop Sunlit Olympic Pool UI architecture
