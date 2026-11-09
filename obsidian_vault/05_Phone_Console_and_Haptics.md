@@ -36,3 +36,10 @@ Back to [[00_PoloBridge_MOC]] | Design System: [[04_Aquatic_Design_System]]
 ## 3. Screen Wake-Lock API
 - Calls `navigator.wakeLock.request('screen')` on mount to keep the screen on throughout the match.
 - Auto-reacquires wake-lock on `visibilitychange` when returning from another app.
+
+## 4. Dynamic 20s Plunger & Turnover Exclusion Release (Rule WP 21)
+- **NFHS 30s Only vs NCAA 20s/30s Mode**:
+  - Top masthead ruleset badge is a 1-tap interactive toggle (`onToggle20sReset`).
+  - When in High School 30s-only mode (`enable20sReset === false`), the **20s reset plunger goes away** in both Portrait and Landscape orientations, leaving a single full-width/full-height 30s hero plunger (`30s FULL RESET — ALL RESETS 30s`), matching iPad behavior.
+- **Turnover / Change of Possession Release**:
+  - Hitting `30s RESET` (Turnover / Goal) automatically clears and releases defending team 20s exclusions per World Aquatics Rule WP 21.3 / WP 21.11, immediately dismissing active 20s penalty banners.
