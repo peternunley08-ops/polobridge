@@ -6,7 +6,12 @@ const PRECACHE_URLS = [
   './manifest.json',
   './assets/polobridge_kit_exploded_render.jpg',
   './assets/polobridge_hardware_dongle.jpg',
-  './assets/polobridge_deck_operator_pov.jpg'
+  './assets/polobridge_deck_operator_pov.jpg',
+  './downloads/PoloBridge_Rev2_4_JLCPCB_Gerbers.zip',
+  './downloads/JLCPCB_BOM.csv',
+  './downloads/JLCPCB_CPL.csv',
+  './downloads/polobridge_front_panel_drill_jig.stl',
+  './downloads/polopad_poolside_sunhood_stand.stl'
 ];
 
 self.addEventListener('install', (event) => {
@@ -31,6 +36,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Stale-While-Revalidate + Offline SPA Navigation Fallback
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
@@ -43,7 +49,13 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => cached);
+        .catch(() => {
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+          return cached;
+        });
       return cached || networked;
     })
   );
