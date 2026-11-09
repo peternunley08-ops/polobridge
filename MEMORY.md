@@ -27,6 +27,15 @@
    - **Tier 1 — Open-Hardware DIY**: \$24.40–\$49.85 (Free Gerbers/BOM/CPL/Firmware/STL)
    - **Tier 2 — High School Turnkey Kit**: \$279 One-Time (Assembled IP67 Rev 2.5 Dongle + Cables + Free iOS App, zero recurring fees)
    - **Tier 3 — Tournament & 6-8 Cloud Pro**: +\$99/yr Optional (4-Pool Multi-Course Hub + Live 6-8 Sports Cloud Box Score Sync)
+6. **Browser-Based WebSerial ESP32-S3 Firmware Flasher & Hardware QC (`webserial-manager.ts` & `firmware-flasher-panel.tsx`)**:
+   - **In-Browser 1-Click Flasher**: Connects over WebSerial USB-C (`0x303a` Espressif VID, 115200 initial bootloader sync, 921600 baud flashing) using SLIP protocol framing (`0xC0` delimiters, `0x08` sync opcode). Erases partition `0x10000`, writes the official 842KB Rev 2.5 binary, verifies MD5 checksum, and hard-resets into application mode without Arduino IDE or Python.
+   - **Automated 5-Point Hardware Self-Test**:
+     1. Isolated RS-232 Loopback (`GPIO 17 TX` -> `GPIO 16 RX` through `ADuM1201` + `MAX3232`).
+     2. 3-Channel Pickle Optocouplers (`EL817S` `GPIO 4/5/6`).
+     3. 105dB Piezo Horn Driver (`AO3400A` `GPIO 7`).
+     4. Lid Emergency Fail-Safe Buttons (`SW3/SW4/SW5` on `GPIO 18/19/20`, active-low readouts).
+     5. Chip Telemetry & Rail Voltage (`ESP32-S3 WROOM-1U-N8`, 8MB Flash, 3.32V rail).
+   - **Interactive Fallback Simulation**: Automatically enables transparent simulation mode on non-Chromium browsers (iOS Safari, iPadOS) so coaches can test workflows anywhere.
 
 ---
 

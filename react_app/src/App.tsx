@@ -12,6 +12,7 @@ import HardwareBomPanel from './components/hardware-bom-panel';
 import LandingPage from './components/landing-page';
 import TournamentHubPanel from './components/tournament-hub-panel';
 import PhoneConsole from './components/phone-console';
+import FirmwareFlasherPanel from './components/firmware-flasher-panel';
 import { bleManager, BleConnectionStatus } from './engine/bluetooth-manager';
 import {
   PRESET_68_MATCHES,
@@ -83,7 +84,7 @@ const sounds = new SoundEngine();
 
 // --- Types ---
 type Protocol = 'cts' | 'daktronics';
-export type ActiveTab = 'console' | 'tournament' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
+export type ActiveTab = 'console' | 'tournament' | 'flasher' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
 
 interface Exclusion {
   id: string;
@@ -776,6 +777,7 @@ export default function App() {
         <div className="flex items-center gap-1 bg-sky-950/70 p-1 rounded-xl border border-cyan-400/30 shadow-inner overflow-x-auto">
           {[
             { id: 'console', label: 'Console', icon: Layers },
+            { id: 'flasher', label: 'USB Flasher & QC', icon: Zap },
             { id: 'tournament', label: 'Auto-Finder & Hub', icon: Compass },
             { id: 'landing', label: 'Product & ROI', icon: Rocket },
             { id: 'bom', label: 'Order BOM ($49)', icon: Cpu },
@@ -1970,6 +1972,9 @@ export default function App() {
             }}
           />
         )}
+
+        {/* VIEW J: WEBSERIAL ESP32-S3 FIRMWARE FLASHER & HARDWARE QC */}
+        {activeTab === 'flasher' && <FirmwareFlasherPanel />}
 
       </main>
 
