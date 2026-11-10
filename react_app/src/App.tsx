@@ -4,7 +4,7 @@ import {
   Radio, Settings, FileText, Check, Copy, ExternalLink, 
   Plus, Minus, AlertTriangle, Printer, Layers, Clock,
   ArrowRight, Undo2, Award, Zap, Sparkles, Bluetooth, Trophy,
-  Cpu, Rocket, Timer, Keyboard, Compass, Smartphone, Database
+  Cpu, Rocket, Timer, Keyboard, Compass, Smartphone, Database, LayoutGrid
 } from 'lucide-react';
 import MockupsGallery from './components/mockups-gallery';
 import SixEightPanel from './components/six-eight-panel';
@@ -15,6 +15,11 @@ import PhoneConsole from './components/phone-console';
 import FirmwareFlasherPanel from './components/firmware-flasher-panel';
 import OfflineResiliencePanel from './components/offline-resilience-panel';
 import { DigitalScoresheetPanel } from './components/digital-scoresheet-panel';
+import TournamentDirectorHub from './components/tournament-director-hub';
+import { useCourtLinkStatus } from './components/use-court-link';
+import { capsCappedOut } from './engine/court-link';
+import { courtLinkSession } from './engine/court-link-session';
+import { parseInviteHash } from './engine/court-link-transports';
 import { TeamRoster, MatchEventLogEntry, createDefaultRoster } from './engine/roster-manager';
 import { bleManager, BleConnectionStatus } from './engine/bluetooth-manager';
 import { matchPersistence, PersistedMatchState } from './engine/match-persistence';
@@ -82,13 +87,40 @@ class SoundEngine {
       // Audio fallback
     }
   }
+
+  // Tournament Director attention chime: a rising two-note bell for match
+  // events (goal, period end), a falling square-wave pair for faults.
+  playChime(tone: 'info' | 'warn' = 'info') {
+    try {
+      this.init();
+      const ctx = this.ctx;
+      if (!ctx) return;
+      const notes = tone === 'warn' ? [392, 311] : [659, 880];
+      notes.forEach((frequency, index) => {
+        const startAt = ctx.currentTime + index * 0.14;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = tone === 'warn' ? 'square' : 'sine';
+        osc.frequency.setValueAtTime(frequency, startAt);
+        gain.gain.setValueAtTime(0.0001, startAt);
+        gain.gain.exponentialRampToValueAtTime(tone === 'warn' ? 0.14 : 0.22, startAt + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.13);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startAt);
+        osc.stop(startAt + 0.14);
+      });
+    } catch {
+      // Audio fallback
+    }
+  }
 }
 
 const sounds = new SoundEngine();
 
 // --- Types ---
 type Protocol = 'cts' | 'daktronics';
-export type ActiveTab = 'console' | 'offline' | 'tournament' | 'flasher' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
+export type ActiveTab = 'console' | 'offline' | 'tournament' | 'director' | 'flasher' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
 
 interface Exclusion {
   id: string;
@@ -235,6 +267,23 @@ export default function App() {
   // Undo History Stack (15-state full snapshot)
   const [undoStack, setUndoStack] = useState<ClockSnapshot[]>([]);
 
+  // Court Link: this desk's live link to the Tournament Director 4-court dashboard
+  const courtLinkStatus = useCourtLinkStatus();
+  // Director full-screen mode hides this masthead so all four courts fit on one screen.
+  const [isDirectorFullScreen, setIsDirectorFullScreen] = useState<boolean>(false);
+  const isMastheadHidden = activeTab === 'director' && isDirectorFullScreen;
+
+  // An invite link (#pp-room=…&pp-court=B) configures this device in one tap.
+  useEffect(() => {
+    const invite = parseInviteHash(window.location.hash);
+    if (!invite) return;
+    const result = courtLinkSession.applyInvite(invite);
+    // Drop the fragment so a reload does not apply the invite a second time.
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+    // A desk invite stays on the scoring console; a dashboard invite opens the dashboard.
+    if (result.ok && !invite.courtId) setActiveTab('director');
+  }, []);
+
   // Bus Monitor Log
   const [busLog, setBusLog] = useState<Array<{ time: string; header: string; ascii: string; protocol: string }>>([]);
 
@@ -371,6 +420,55 @@ export default function App() {
       bleManager.sendScores(scoreWhite, scoreDark, period);
     }
   }, [scoreWhite, scoreDark, period, bleStatus]);
+
+  // Court Link publisher: hand every state change to the link engine. It is a
+  // no-op unless this device scores a court, and even then it only transmits
+  // when the director's clock projection would be wrong, plus a 1 Hz heartbeat.
+  useEffect(() => {
+    courtLinkSession.publishDeskState({
+      isRunning,
+      gameTimeMs,
+      shotTimeMs,
+      period,
+      scoreWhite,
+      scoreDark,
+      teamWhiteName,
+      teamDarkName,
+      quarterScores,
+      exclusions,
+      activeTimeout,
+      timeoutsWhite,
+      timeoutsDark,
+      isHornActive,
+      enable20sReset,
+      protocol,
+      bleStatus,
+      cappedOutWhite: capsCappedOut(whiteRoster),
+      cappedOutDark: capsCappedOut(darkRoster),
+      events: sixEightEvents,
+    });
+  }, [
+    isRunning,
+    gameTimeMs,
+    shotTimeMs,
+    period,
+    scoreWhite,
+    scoreDark,
+    teamWhiteName,
+    teamDarkName,
+    quarterScores,
+    exclusions,
+    activeTimeout,
+    timeoutsWhite,
+    timeoutsDark,
+    isHornActive,
+    enable20sReset,
+    protocol,
+    bleStatus,
+    whiteRoster,
+    darkRoster,
+    sixEightEvents,
+  ]);
 
   const handleToggleBlePair = async () => {
     sounds.playClick();
@@ -857,7 +955,7 @@ export default function App() {
       {/* ======================================================== */}
       {/* 1. PROFESSIONAL AQUATIC MASTHEAD HEADER                  */}
       {/* ======================================================== */}
-      <header className="min-h-14 border-b border-cyan-400/30 bg-gradient-to-r from-sky-900/95 via-blue-900/95 to-indigo-900/95 backdrop-blur-xl px-4 py-2 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-50 shadow-[0_4px_25px_rgba(6,182,212,0.2)] print:hidden">
+      <header className={`min-h-14 border-b border-cyan-400/30 bg-gradient-to-r from-sky-900/95 via-blue-900/95 to-indigo-900/95 backdrop-blur-xl px-4 py-2 flex-wrap items-center justify-between gap-2 sticky top-0 z-50 shadow-[0_4px_25px_rgba(6,182,212,0.2)] print:hidden ${isMastheadHidden ? 'hidden' : 'flex'}`}>
         
         {/* Brand & Connection Status */}
         <div className="flex items-center gap-3">
@@ -911,6 +1009,35 @@ export default function App() {
                     : 'CONNECT 6-8'}
                 </span>
               </button>
+
+              {/* Court Link Pill: shown only while this device scores a court for a Tournament Director */}
+              {courtLinkStatus.config.deskCourtId && (
+                <button
+                  onClick={() => { sounds.playClick(); setActiveTab('director'); }}
+                  title={
+                    courtLinkStatus.deskSlot === 'publishing'
+                      ? `Court ${courtLinkStatus.config.deskCourtId} is linked to the Tournament Director dashboard`
+                      : courtLinkStatus.deskSlot === 'blocked'
+                      ? `Court ${courtLinkStatus.config.deskCourtId} is already published from another tab of this browser`
+                      : `Linking Court ${courtLinkStatus.config.deskCourtId} to the Tournament Director dashboard`
+                  }
+                  data-testid="court-link-pill"
+                  data-slot={courtLinkStatus.deskSlot}
+                  className={`flex items-center gap-1.5 text-[10px] px-2.5 py-0.5 rounded-full border font-mono font-bold transition cursor-pointer ${
+                    courtLinkStatus.deskSlot === 'publishing'
+                      ? 'bg-emerald-400/20 hover:bg-emerald-400/30 text-emerald-200 border-emerald-300/50 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                      : courtLinkStatus.deskSlot === 'blocked'
+                      ? 'bg-rose-500/25 hover:bg-rose-500/35 text-rose-100 border-rose-300/60'
+                      : 'bg-amber-400/20 text-amber-200 border-amber-300/50 animate-pulse'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${courtLinkStatus.deskSlot === 'publishing' ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`} />
+                  <span>
+                    COURT {courtLinkStatus.config.deskCourtId}
+                    {courtLinkStatus.deskSlot === 'blocked' ? ' BLOCKED' : ''}
+                  </span>
+                </button>
+              )}
             </div>
             <div className="text-[10px] text-cyan-200/80 font-mono">
               {bleError ? (
@@ -936,6 +1063,7 @@ export default function App() {
             { id: 'overlay', label: 'Scorebug', icon: Tv },
             { id: 'rack', label: 'LED / RS-232', icon: Radio },
             { id: 'scoresheet', label: 'Scoresheet', icon: FileText },
+            { id: 'director', label: 'Director', icon: LayoutGrid },
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -2007,6 +2135,24 @@ export default function App() {
               setProtocol(p);
               bleManager.sendProtocol(p);
             }}
+            onOpenDirector={() => {
+              sounds.playClick();
+              setActiveTab('director');
+            }}
+          />
+        )}
+
+        {/* VIEW L: TOURNAMENT DIRECTOR 4-COURT LIVE DASHBOARD (READ-ONLY COURT LINK) */}
+        {activeTab === 'director' && (
+          <TournamentDirectorHub
+            onPlayClick={() => sounds.playClick()}
+            onPlayAlert={(severity) => sounds.playChime(severity)}
+            onOpenConsole={() => {
+              setIsDirectorFullScreen(false);
+              setActiveTab('console');
+            }}
+            isFullScreen={isDirectorFullScreen}
+            onSetFullScreen={setIsDirectorFullScreen}
           />
         )}
 
