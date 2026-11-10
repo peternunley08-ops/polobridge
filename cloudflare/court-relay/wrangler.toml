@@ -1,0 +1,24 @@
+# PoloPad Pro — Court Relay
+# A WebSocket fan-out relay on Cloudflare Workers + Durable Objects.
+# Deploy:  npm install && npx wrangler deploy
+name = "polopad-court-relay"
+main = "src/index.ts"
+compatibility_date = "2026-06-01"
+
+# One Durable Object per tournament room. SQLite-backed classes are the kind
+# that can be created on the Workers Free plan; the relay stores nothing.
+[[durable_objects.bindings]]
+name = "COURT_ROOM"
+class_name = "CourtRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CourtRoom"]
+
+[vars]
+# Comma-separated web origins allowed to open a socket from a browser.
+# Add your own domain here if you host the PWA somewhere else. "*" allows any.
+ALLOWED_ORIGINS = "https://peternunley08-ops.github.io,http://localhost:3000,http://127.0.0.1:3000,capacitor://localhost,polopad://localhost"
+
+[observability]
+enabled = true
