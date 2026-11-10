@@ -235,7 +235,7 @@ describe('demo simulator — link outage on court D', () => {
     });
 
     const healthSeen = new Set<string>();
-    for (let elapsed = 0; elapsed < 70_000; elapsed += STEP_MS) {
+    for (let elapsed = 0; elapsed < 100_000; elapsed += STEP_MS) {
       clock.advance(STEP_MS);
       simulator.advance(clock.nowMs);
       for (const alert of directory.sweep(clock.nowMs)) alerts.push(`${alert.courtId}:${alert.kind}`);

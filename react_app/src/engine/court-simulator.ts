@@ -126,8 +126,8 @@ export const DEMO_COURT_SCRIPTS: SimulatedCourtScript[] = [
     shotTimeMs: 27 * 1000,
     quarterScores: { white: [1, 0, 0, 0, 0, 0, 0], dark: [0, 0, 0, 0, 0, 0, 0] },
     // Shows the LAGGING -> LINK LOST -> restored states without touching real data.
-    outageSeconds: 12,
-    outageEverySeconds: 55,
+    outageSeconds: 11,
+    outageEverySeconds: 90,
     seed: 0xd00d,
   },
 ];

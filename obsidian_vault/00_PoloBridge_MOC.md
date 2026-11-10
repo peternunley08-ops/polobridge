@@ -7,7 +7,7 @@ tags:
   - water-polo
   - obsidian-second-brain
 status: production-live
-updated: 2026-11-08
+updated: 2026-11-10
 ---
 
 # 🤽 PoloBridge & PoloPad Pro — Second Brain MOC
@@ -25,6 +25,7 @@ updated: 2026-11-08
 6. **WebSerial ESP32-S3 Flasher & Hardware QC**: [[06_WebSerial_Flasher_and_QC]]
 7. **Offline Resilience, Dual-Layer IndexedDB & BLE Auto-Reconnect**: [[07_Offline_Resilience_and_IndexedDB]]
 8. **Digital Scoresheet, Team Rosters & Rule WP 22.3 Cap-Out**: [[08_Digital_Scoresheet_and_Rosters]]
+9. **Tournament Director 4-Court Dashboard & Court Link**: [[09_Tournament_Director_and_Court_Link]]
 
 ## Installed 10-Skill Agentic Engineering Stack
 - `frontend-design` — Anti-slop Sunlit Olympic Pool UI architecture

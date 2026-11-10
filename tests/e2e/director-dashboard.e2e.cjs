@@ -495,6 +495,20 @@ async function relayScenario(browser, baseUrl) {
     await lateContext.close();
   });
 
+  await check('a second device claiming the same court is flagged, and the first desk stays on screen', async () => {
+    const rivalContext = await browser.newContext({ serviceWorkers: 'block' });
+    const rival = await rivalContext.newPage();
+    await join(rival);
+    await rival.getByTestId('desk-court-D').click();
+    await eventually(() => tile(director, 'D').innerText(), (value) => value.includes('2 devices are publishing this court'), 'conflict ribbon on the director', 8000);
+    await eventually(() => director.getByRole('log').innerText(), (value) => value.includes('2 devices are publishing this court'), 'conflict alert');
+    // The rival is told as well, on its own setup card.
+    await eventually(() => rival.getByTestId('link-setup').innerText(), (value) => value.includes('Another device is also publishing Court D'), 'warning on the rival device', 8000);
+    await rivalContext.close();
+    await eventually(() => tile(director, 'D').innerText(), (value) => !value.includes('devices are publishing'), 'conflict clears', 9000);
+    expectEqual(await health(director, 'D'), 'live', 'the original desk is still shown');
+  });
+
   await check('closing the desk signs the court off on the remote director', async () => {
     await desk.close();
     await eventually(() => health(director, 'D'), (value) => value === 'signed-off' || value === 'stale', 'court D after the desk closed', 12000);

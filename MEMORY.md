@@ -1,7 +1,7 @@
 # 🧠 Claude-Mem: PoloBridge & PoloPad Pro Persistent Memory Bank
 
 > **Auto-Loaded Session Context (`thedotmack/claude-mem` Protocol)**
-> Last Updated: `2026-11-08` | Active Release: **`Rev 2.5 (Commit cab8759)`**
+> Last Updated: `2026-11-10` | Active Release: **`Rev 2.5 (Commit cab8759)`**
 > Live Production PWA: **[https://peternunley08-ops.github.io/polobridge/](https://peternunley08-ops.github.io/polobridge/)**
 
 ---
@@ -45,6 +45,14 @@
    - **Cap #1–20 Attribution**: Tracks individual goals by quarter, goalie saves, personal fouls (`E`, `P`, `MAM`), timeouts, and sprints for White and Blue teams.
    - **Rule WP 22.3 Cap-Out Guardrail**: Automatically flags and rolls players on their 3rd personal foul, alerting the desk and locking further scoring actions for that cap number.
    - **Multi-Format Export**: 1-Click Print / PDF Scoresheet formatted for Letter/A4 Landscape matching USA Water Polo / NFHS official forms, CSV Box Score download, and clipboard summary generator.
+9. **Tournament Director 4-Court Dashboard & Court Link (`court-link.ts`, `tournament-director-hub.tsx`, `cloudflare/court-relay`)**:
+   - **Read-Only Dashboard**: Shows Courts A to D. Nothing received can start, stop or reset a clock on any desk; the desk remains the official clock.
+   - **Snapshot Plus Projection**: Each desk publishes full match snapshots. The director projects both clocks between them, with a `1 Hz` heartbeat and an immediate frame on every real change. A desk transmits only when the projection would be wrong (whistle, reset, goal, manual clock edit), limited to `10` frames/s with `150 ms` tolerance.
+   - **Link Health Thresholds**: `LIVE` under `3 s` silence; `LAGGING` from `3 s` to under `8 s` (amber, clocks still projected); `LINK LOST` at `8 s` or more (projection stops, last confirmed values shown); `DESK SIGNED OFF` shows final values immediately.
+   - **Court Ownership & Conflicts**: The first desk heard owns a court. A second device is flagged as a conflict after `2` frames within `5 s`. Takeover only when the owner has signed off, gone stale, or is a newer page load of the same device. Same browser, two tabs: Web Lock `polopad-court-desk:<room>:<court>`.
+   - **Two Transports**: BroadcastChannel `polopad_court_link_v1:<room>` for the same device (no setup); WebSocket relay for different devices (needs the relay deployed and its address pasted into Director → Link Setup).
+   - **Relay Not Yet Deployed**: Verified locally under `wrangler dev` only. To deploy, run `npx wrangler deploy` in `cloudflare/court-relay` (Node.js `22.12`+), then paste the address into Director → Link Setup.
+   - **Tests**: `react_app` `npm test` (217 engine tests), `cloudflare/court-relay` `npm test` (20 protocol tests), `tests/e2e/director-dashboard.e2e.cjs` (Chromium; set `COURT_RELAY_URL` for the two-device scenario), and `tests/test_tournament_director.py`.
 
 ---
 
