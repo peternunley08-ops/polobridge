@@ -166,6 +166,18 @@ class TestPlaywrightE2EProductionBundle(unittest.TestCase):
                 break
         self.assertTrue(found_overlay, "Broadcast scorebug and OBS overlay must be compiled into production bundle")
 
+    def test_11_volunteer_training_bundle(self):
+        assets_dir = os.path.join(DIST_DIR, "assets")
+        js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
+        found_training = False
+        for jf in js_files:
+            with open(os.path.join(assets_dir, jf), encoding="utf-8") as f:
+                content = f.read()
+            if "Water Polo Table Operator Cheat-Sheet" in content and "Decision Matrix" in content:
+                found_training = True
+                break
+        self.assertTrue(found_training, "Volunteer cheat-sheet and training simulator must be compiled into production bundle")
+
 
 
 if __name__ == "__main__":

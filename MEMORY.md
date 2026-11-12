@@ -76,6 +76,12 @@
    - **Broadcast Features**: 100ms synchronized clocks, Rule WP 20.15 shot clock auto-blanking, power-play exclusion sub-bar, sponsor/tournament banner ticker, and goal splash animation.
    - **Inter-Tab Sync**: BroadcastChannel `polopad_broadcast_stream` continuously mirrors console state to OBS browser sources.
    - **Tests**: `tests/test_broadcast_overlay.py` (5 architecture tests), `tests/test_playwright_e2e.py` (`test_10_broadcast_overlay_bundle`).
+14. **Volunteer Table Quick-Start Cheat-Sheet & Training Simulator (`volunteer-training.ts`, `volunteer-training-panel.tsx`)**:
+   - **1-Page Printable Guide**: High-contrast poolside card (`@media print` formatted) with 3 Golden Rules and table lookup.
+   - **Referee Whistle Decoder**: Acoustic audio playback of ordinary fouls, turnovers, exclusions, goals, corner throws, and penalties.
+   - **30s vs 20s Decision Matrix**: World Aquatics WP 20.16 offensive rebounds vs NFHS High School rules.
+   - **Interactive Situation Quiz**: 6 realistic pool-deck game situations with immediate corrective feedback and score tracking.
+   - **Tests**: `tests/test_volunteer_training.py` (6 architecture tests), `tests/test_playwright_e2e.py` (`test_11_volunteer_training_bundle`).
 
 ---
 

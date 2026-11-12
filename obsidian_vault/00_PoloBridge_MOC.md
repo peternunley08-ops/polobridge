@@ -29,6 +29,7 @@ updated: 2026-11-10
 10. **Live 6-8 Sports Cloud Sync & WebSocket Bridge**: [[10_Six_Eight_Sports_Cloud_and_WebSocket_Bridge]]
 11. **Audio Synthesizer & Pool Deck Voice Announcer**: [[11_Audio_Synthesizer_and_Pool_Deck_Announcer]]
 12. **Live OBS & vMix Broadcast Scorebug Stream Overlay**: [[12_Broadcast_Scorebug_and_OBS_Overlay]]
+13. **Volunteer Table Quick-Start Cheat-Sheet & Training Simulator**: [[13_Volunteer_Table_Cheat_Sheet_and_Training_Simulator]]
 
 ## Installed 10-Skill Agentic Engineering Stack
 - `frontend-design` — Anti-slop Sunlit Olympic Pool UI architecture

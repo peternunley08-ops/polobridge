@@ -4,7 +4,7 @@ import {
   Radio, Settings, FileText, Check, Copy, ExternalLink, 
   Plus, Minus, AlertTriangle, Printer, Layers, Clock,
   ArrowRight, Undo2, Award, Zap, Sparkles, Bluetooth, Trophy,
-  Cpu, Rocket, Timer, Keyboard, Compass, Smartphone, Database, LayoutGrid
+  Cpu, Rocket, Timer, Keyboard, Compass, Smartphone, Database, LayoutGrid, BookOpen
 } from 'lucide-react';
 import MockupsGallery from './components/mockups-gallery';
 import SixEightPanel from './components/six-eight-panel';
@@ -39,6 +39,7 @@ import { AudioAnnouncerPanel } from './components/audio-announcer-panel';
 import { audioSynthesizer } from './engine/audio-synthesizer';
 import { BroadcastOverlayPanel } from './components/broadcast-overlay-panel';
 import { broadcastManager } from './engine/broadcast-manager';
+import { VolunteerTrainingPanel } from './components/volunteer-training-panel';
 
 // --- Web Audio Synthesizer (Pool Horn & Mechanical Clicks) ---
 class SoundEngine {
@@ -59,7 +60,7 @@ const sounds = new SoundEngine();
 
 // --- Types ---
 type Protocol = 'cts' | 'daktronics';
-export type ActiveTab = 'console' | 'audio' | 'offline' | 'tournament' | 'director' | 'flasher' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
+export type ActiveTab = 'console' | 'training' | 'audio' | 'offline' | 'tournament' | 'director' | 'flasher' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
 
 interface Exclusion {
   id: string;
@@ -1001,6 +1002,7 @@ export default function App() {
         <div className="flex items-center gap-1 bg-sky-950/70 p-1 rounded-xl border border-cyan-400/30 shadow-inner overflow-x-auto">
           {[
             { id: 'console', label: 'Console', icon: Layers },
+            { id: 'training', label: 'Volunteer Guide', icon: BookOpen },
             { id: 'audio', label: 'Audio & Voice', icon: Volume2 },
             { id: 'offline', label: 'Offline & IDB', icon: Database },
             { id: 'flasher', label: 'USB Flasher & QC', icon: Zap },
@@ -2112,6 +2114,11 @@ export default function App() {
         {/* VIEW N: AUDIO SYNTHESIZER & POOL DECK VOICE ANNOUNCER */}
         {activeTab === 'audio' && (
           <AudioAnnouncerPanel onBackToConsole={() => setActiveTab('console')} />
+        )}
+
+        {/* VIEW O: VOLUNTEER TABLE QUICK-START & TRAINING SIMULATOR */}
+        {activeTab === 'training' && (
+          <VolunteerTrainingPanel onBackToConsole={() => setActiveTab('console')} />
         )}
 
       </main>

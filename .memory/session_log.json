@@ -19,6 +19,11 @@
   "sessions": [
     {
       "date": "2026-11-12",
+      "milestone": "Volunteer Table Quick-Start Cheat-Sheet & Training Simulator (volunteer-training.ts, volunteer-training-panel.tsx) with 1-page printable poolside reference, referee whistle audio decoder, 30s vs 20s decision matrix, and interactive situation quiz",
+      "qa_status": "100% PASS (Volunteer Training Tests 6/6 + Playwright E2E 11/11 + Broadcast Overlay 5/5 + Audio Synthesizer 5/5 + Six-Eight Bridge 5/5 + Engine TypeScript Tests 250/250 + Agent Definitions 6/6 + Tournament Director 5/5 + Scoresheet 5/5 + Persistence 5/5 + Phone 5/5 + Flasher 4/4 + Rules 4/4 + DRC 5/5 + Code Review 4/4 + Black October 22/22)"
+    },
+    {
+      "date": "2026-11-12",
       "milestone": "Live OBS & vMix Broadcast Scorebug Stream Overlay Suite (broadcast-manager.ts, broadcast-overlay-panel.tsx) with transparent browser source HUD, 4 themes (Olympic Ribbon, ESPN Lower-Third, Hudl Stream Pill, Minimal Bug), Rule WP 20.15 auto-blanking, and BroadcastChannel sync",
       "qa_status": "100% PASS (Broadcast Overlay Tests 5/5 + Playwright E2E 10/10 + Audio Synthesizer 5/5 + Six-Eight Bridge 5/5 + Engine TypeScript Tests 250/250 + Agent Definitions 6/6 + Tournament Director 5/5 + Scoresheet 5/5 + Persistence 5/5 + Phone 5/5 + Flasher 4/4 + Rules 4/4 + DRC 5/5 + Code Review 4/4 + Black October 22/22)"
     },
