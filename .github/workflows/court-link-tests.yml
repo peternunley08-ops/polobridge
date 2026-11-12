@@ -1,0 +1,91 @@
+name: Court Link — Engine, Relay & Build Checks
+
+# Runs on pull requests so a change is checked before it reaches main, where
+# deploy.yml publishes the PWA. It never deploys anything.
+
+on:
+  pull_request:
+    paths:
+      - 'react_app/**'
+      - 'cloudflare/court-relay/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.claude/agents/**'
+      - '.github/workflows/court-link-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: court-link-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pwa:
+    name: PWA engine tests & production build (Node 20)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Repository Audit, Hardware DRC & Rules Suites
+        run: |
+          python3 scripts/audit_skills_security.py
+          python3 scripts/context7_doc_inspector.py
+          python3 scripts/run_code_simplifier.py
+          python3 scripts/run_code_review.py
+          python3 tests/test_rules_engine.py
+          python3 tests/test_overdrive_qa_suite.py
+          python3 tests/test_phone_version.py
+          python3 tests/test_webserial_flasher.py
+          python3 tests/test_offline_persistence.py
+          python3 tests/test_digital_scoresheet.py
+          python3 tests/test_tournament_director.py
+          python3 tests/test_agent_definitions.py
+
+      - name: Set up Node.js 20 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: react_app/package-lock.json
+
+      - name: Install, Run Court Link Engine Tests & Build
+        working-directory: react_app
+        run: |
+          npm ci
+          npm test
+          npm run build
+
+      - name: Verify Production Bundle
+        run: |
+          python3 tests/test_playwright_e2e.py
+
+  relay:
+    name: Court relay protocol tests (Node 22, local Workers runtime)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: cloudflare/court-relay/package-lock.json
+
+      - name: Install, Type-Check & Test the Relay
+        working-directory: cloudflare/court-relay
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          npm ci
+          npm run typecheck
+          npm test

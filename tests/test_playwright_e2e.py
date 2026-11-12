@@ -118,6 +118,18 @@ class TestPlaywrightE2EProductionBundle(unittest.TestCase):
                 break
         self.assertTrue(found_scoresheet, "Digital scoresheet panel must be compiled into production bundle")
 
+    def test_07_tournament_director_bundle(self):
+        assets_dir = os.path.join(DIST_DIR, "assets")
+        js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
+        found_director = False
+        for jf in js_files:
+            with open(os.path.join(assets_dir, jf), encoding="utf-8") as f:
+                content = f.read()
+            if "Tournament Director" in content and "polopad_court_link_v1" in content:
+                found_director = True
+                break
+        self.assertTrue(found_director, "Tournament Director dashboard and court link must be compiled into production bundle")
+
 
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromModule(__import__(__name__))

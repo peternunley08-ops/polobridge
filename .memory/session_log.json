@@ -18,6 +18,16 @@
   ],
   "sessions": [
     {
+      "date": "2026-11-12",
+      "milestone": "Wall-clock console clock (match-clock.ts, use-live-state.ts) shared with the director's projection, and four Haiku delegation agents in .claude/agents (repo-scout, check-runner, doc-scribe, convention-test-writer) with the delegation rule in AGENTS.md section 4",
+      "qa_status": "Engine TypeScript tests 250/250 (npm test) + tests/test_agent_definitions.py 6/6 + existing Python suites + browser end-to-end suite in Chromium 24/24 (31/31 with a local relay). Clock fix not yet checked on a physical iPad. Agent definitions parse and were dry-run on Haiku; loading them by name was not tested because agents load when a session starts."
+    },
+    {
+      "date": "2026-11-10",
+      "milestone": "Tournament Director 4-Court Live Dashboard & Court Link (court-link.ts, court-link-transports.ts, court-link-session.ts, tournament-director-hub.tsx) with clock projection, link-health states, duplicate-court conflict detection, BroadcastChannel + WebSocket relay transports, and a Cloudflare Durable Object relay (cloudflare/court-relay)",
+      "qa_status": "Engine TypeScript tests 217/217 (npm test) + relay protocol tests 20/20 under wrangler dev + browser end-to-end suite in Chromium + existing Python suites. Relay verified locally only; not yet deployed to Cloudflare."
+    },
+    {
       "date": "2026-11-09",
       "milestone": "Digital Scoresheet & Team Rosters (roster-manager.ts & digital-scoresheet-panel.tsx) with Cap #1-20 Individual Goal/Foul Tracking, Rule WP 22.3 Cap-Out Enforcement, and USAWP/NFHS Landscape Print/PDF & CSV Export",
       "qa_status": "100% PASS (Scoresheet Tests 5/5 + Playwright E2E 6/6 + Persistence Tests 5/5 + Phone Tests 5/5 + Flasher Tests 4/4 + Rules 4/4 + DRC 5/5 + Code Review 4/4 + Black October 22/22)"

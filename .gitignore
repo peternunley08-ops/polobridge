@@ -14,3 +14,6 @@ build/
 conversation_log.zip
 __pycache__/
 *.pyc
+
+# Engine test bundles (npm test)
+react_app/.test-build/

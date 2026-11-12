@@ -1,7 +1,7 @@
 # 🧠 Claude-Mem: PoloBridge & PoloPad Pro Persistent Memory Bank
 
 > **Auto-Loaded Session Context (`thedotmack/claude-mem` Protocol)**
-> Last Updated: `2026-11-08` | Active Release: **`Rev 2.5 (Commit cab8759)`**
+> Last Updated: `2026-11-12` | Active Release: **`Rev 2.5 (Commit cab8759)`**
 > Live Production PWA: **[https://peternunley08-ops.github.io/polobridge/](https://peternunley08-ops.github.io/polobridge/)**
 
 ---
@@ -45,6 +45,19 @@
    - **Cap #1–20 Attribution**: Tracks individual goals by quarter, goalie saves, personal fouls (`E`, `P`, `MAM`), timeouts, and sprints for White and Blue teams.
    - **Rule WP 22.3 Cap-Out Guardrail**: Automatically flags and rolls players on their 3rd personal foul, alerting the desk and locking further scoring actions for that cap number.
    - **Multi-Format Export**: 1-Click Print / PDF Scoresheet formatted for Letter/A4 Landscape matching USA Water Polo / NFHS official forms, CSV Box Score download, and clipboard summary generator.
+9. **Tournament Director 4-Court Dashboard & Court Link (`court-link.ts`, `tournament-director-hub.tsx`, `cloudflare/court-relay`)**:
+   - **Read-Only Dashboard**: Shows Courts A to D. Nothing received can start, stop or reset a clock on any desk; the desk remains the official clock.
+   - **Snapshot Plus Projection**: Each desk publishes full match snapshots. The director projects both clocks between them, with a `1 Hz` heartbeat and an immediate frame on every real change. A desk transmits only when the projection would be wrong (whistle, reset, goal, manual clock edit), limited to `10` frames/s with `150 ms` tolerance.
+   - **Link Health Thresholds**: `LIVE` under `3 s` silence; `LAGGING` from `3 s` to under `8 s` (amber, clocks still projected); `LINK LOST` at `8 s` or more (projection stops, last confirmed values shown); `DESK SIGNED OFF` shows final values immediately.
+   - **Court Ownership & Conflicts**: The first desk heard owns a court. A second device is flagged as a conflict after `2` frames within `5 s`. Takeover only when the owner has signed off, gone stale, or is a newer page load of the same device. Same browser, two tabs: Web Lock `polopad-court-desk:<room>:<court>`.
+   - **Two Transports**: BroadcastChannel `polopad_court_link_v1:<room>` for the same device (no setup); WebSocket relay for different devices (needs the relay deployed and its address pasted into Director → Link Setup).
+   - **Relay Not Yet Deployed**: Verified locally under `wrangler dev` only. To deploy, run `npx wrangler deploy` in `cloudflare/court-relay` (Node.js `22.12`+), then paste the address into Director → Link Setup.
+   - **Tests**: `react_app` `npm test` (250 engine tests), `cloudflare/court-relay` `npm test` (20 protocol tests), `tests/e2e/director-dashboard.e2e.cjs` (Chromium; set `COURT_RELAY_URL` for the two-device scenario), and `tests/test_tournament_director.py`.
+10. **Wall-Clock Console Clock (`match-clock.ts`, `use-live-state.ts`)**:
+   - **Whole-Tick Count**: The scoring console counts whole `100 ms` ticks against the wall clock and carries the remainder, so a late timer or a sleeping tablet is caught up on the next callback. `use-live-state.ts` keeps each clock value in React state and in a ref that is written first, so the timer loop reads current values without being restarted on every tick. The previous loop subtracted `100 ms` per callback and ran slow (about `0.4 s` lost in `20 s` in headless Chromium).
+   - **Shared Stop Rule**: The director's projection calls the same `advanceMatchClocks` function. A `0.0` shot clock stops both clocks; a `0.0` game clock ends the period. After a pause, the clock jumps forward by the time that really passed (intended).
+   - **Tests**: `react_app/tests/match-clock.test.ts` (33 tests, including a comparison with the previous tick loop over `36,000` start states and tick counts, identical results). Engine suite `npm test`: 250/250 on 2026-11-12.
+   - **Not Yet Checked**: On a physical iPad or phone.
 
 ---
 
@@ -60,3 +73,4 @@
 - **Sunlit Olympic Pool Palette**: Always use `from-sky-900 via-blue-900 to-indigo-950`, translucent sapphire cards, and `border-cyan-400/30`. Never use `#06080d`, `#040508`, or `bg-black`.
 - **GitHub Pages Relative Paths**: Always keep `base: './'` in `react_app/vite.config.ts` and `./assets/...` relative paths so assets resolve under `/polobridge/`.
 - **Sandbox `gh` CLI**: Prefix `gh` commands with `TAR_OPTIONS="-m"` if the plugin wrapper extracts in the container sandbox.
+- **Haiku Delegation Agents (`.claude/agents/`)**: Four agents for small, fully specified work: `repo-scout` (read-only search), `check-runner` (runs the suites and returns a pass/fail table), `doc-scribe` (documentation from a fact sheet) and `convention-test-writer` (Python suites in `tests/`). Each runs on Haiku with only the local tools listed in its definition, and the delegation rule is in `AGENTS.md` section 4. `tests/test_agent_definitions.py` (6/6) checks the definitions and runs in both CI workflows. Agents load when a Claude Code session starts.

@@ -13,70 +13,7 @@ import {
   Zap,
   Shield,
 } from 'lucide-react';
-
-interface TournamentGame {
-  id: string;
-  course: 'COURSE A (VARSITY 30M)' | 'COURSE B (NORTH 25Y)';
-  time: string;
-  division: string;
-  whiteTeam: string;
-  darkTeam: string;
-  whiteScore: number;
-  darkScore: number;
-  period: string;
-  status: 'LIVE' | 'FINAL' | 'UPCOMING';
-}
-
-const INITIAL_GAMES: TournamentGame[] = [
-  {
-    id: 'G-101',
-    course: 'COURSE A (VARSITY 30M)',
-    time: '10:00 AM',
-    division: 'CIF Boys Varsity Semi-Final',
-    whiteTeam: 'NEWPORT HARBOR',
-    darkTeam: 'CORONA DEL MAR',
-    whiteScore: 11,
-    darkScore: 10,
-    period: 'Q4 01:42',
-    status: 'LIVE',
-  },
-  {
-    id: 'G-102',
-    course: 'COURSE B (NORTH 25Y)',
-    time: '10:05 AM',
-    division: 'CIF Girls Varsity Semi-Final',
-    whiteTeam: 'LAGUNA BEACH',
-    darkTeam: 'FOOTHILL',
-    whiteScore: 9,
-    darkScore: 9,
-    period: 'OT1 02:15',
-    status: 'LIVE',
-  },
-  {
-    id: 'G-103',
-    course: 'COURSE A (VARSITY 30M)',
-    time: '11:15 AM',
-    division: '16U Boys Club Invitational',
-    whiteTeam: 'SOCAL WP',
-    darkTeam: 'STANFORD WP',
-    whiteScore: 14,
-    darkScore: 12,
-    period: 'FINAL (PSO)',
-    status: 'FINAL',
-  },
-  {
-    id: 'G-104',
-    course: 'COURSE B (NORTH 25Y)',
-    time: '12:20 PM',
-    division: 'CIF Boys Varsity Championship',
-    whiteTeam: 'WINNER G-101',
-    darkTeam: 'SACRED HEART PREP',
-    whiteScore: 0,
-    darkScore: 0,
-    period: 'WARMUP',
-    status: 'UPCOMING',
-  },
-];
+import CourtSummaryList from './court-summary-list';
 
 const AUTO_FINDER_STEPS = [
   {
@@ -111,13 +48,14 @@ const AUTO_FINDER_STEPS = [
 
 export default function TournamentHubPanel({
   onSelectProtocol,
+  onOpenDirector,
 }: {
   onSelectProtocol?: (proto: 'cts' | 'daktronics') => void;
+  onOpenDirector?: () => void;
 }) {
   const [isScanning, setIsScanning] = useState(false);
   const [scanIndex, setScanIndex] = useState(0);
   const [lockedStep, setLockedStep] = useState<number | null>(null);
-  const [games, setGames] = useState<TournamentGame[]>(INITIAL_GAMES);
 
   useEffect(() => {
     if (!isScanning) return;
@@ -257,62 +195,11 @@ export default function TournamentHubPanel({
                 </h3>
               </div>
               <span className="text-xs font-mono text-emerald-300 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-400/40">
-                2 Courses Active &bull; Zero Cable Clutter
+                Live Court Link &bull; Up to 4 Courses
               </span>
             </div>
 
-            <div className="space-y-3">
-              {games.map((g, i) => (
-                <div
-                  key={g.id}
-                  className="p-4 rounded-2xl bg-sky-950/80 border border-cyan-400/30 flex flex-wrap items-center justify-between gap-3"
-                >
-                  <div>
-                    <div className="flex items-center gap-2 text-xs font-mono">
-                      <span className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-200 font-bold">
-                        {g.course}
-                      </span>
-                      <span className="text-sky-300">{g.time}</span>
-                      <span className="text-amber-200 font-bold">{g.division}</span>
-                    </div>
-                    <div className="text-base font-black text-white mt-1.5">
-                      {g.whiteTeam} (White) vs. {g.darkTeam} (Dark)
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    <div className="text-right font-mono">
-                      <div className="text-2xl font-black text-white">
-                        {g.whiteScore} &ndash; {g.darkScore}
-                      </div>
-                      <div
-                        className={`text-xs font-bold ${
-                          g.status === 'LIVE'
-                            ? 'text-emerald-300'
-                            : g.status === 'FINAL'
-                            ? 'text-cyan-300'
-                            : 'text-amber-300'
-                        }`}
-                      >
-                        {g.status} &bull; {g.period}
-                      </div>
-                    </div>
-                    {g.status === 'LIVE' && (
-                      <button
-                        onClick={() => {
-                          const next = [...games];
-                          next[i] = { ...g, whiteScore: g.whiteScore + 1 };
-                          setGames(next);
-                        }}
-                        className="px-3 py-1.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-sky-950 font-mono font-black text-xs cursor-pointer"
-                      >
-                        +1 Test Sync
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <CourtSummaryList onOpenDirector={() => onOpenDirector?.()} />
           </div>
 
           {/* 3D Printable Enclosure & iPad Sun-Hood CAD Pack + Laminated Desk Card */}

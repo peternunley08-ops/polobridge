@@ -1,0 +1,10 @@
+{
+  /* Type-checks the engine test suite (run by `npm test`). Node typings are
+     enabled here only; the app's own tsconfig keeps them out of browser code. */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["tests"]
+}

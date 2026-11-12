@@ -40,6 +40,8 @@ jobs:
           python3 tests/test_webserial_flasher.py
           python3 tests/test_offline_persistence.py
           python3 tests/test_digital_scoresheet.py
+          python3 tests/test_tournament_director.py
+          python3 tests/test_agent_definitions.py
 
       - name: Set up Node.js 20 LTS
         uses: actions/setup-node@v4
@@ -48,10 +50,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: react_app/package-lock.json
 
-      - name: Install Dependencies & Build PoloPad Pro PWA
+      - name: Install Dependencies, Run Court Link Engine Tests & Build PoloPad Pro PWA
         working-directory: react_app
         run: |
           npm ci
+          npm test
           npm run build
 
       - name: Run Playwright E2E Production Bundle & Download Verification
