@@ -142,6 +142,18 @@ class TestPlaywrightE2EProductionBundle(unittest.TestCase):
                 break
         self.assertTrue(found_bridge, "6-8 Sports Cloud Sync & WebSocket Bridge must be compiled into production bundle")
 
+    def test_09_audio_synthesizer_bundle(self):
+        assets_dir = os.path.join(DIST_DIR, "assets")
+        js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
+        found_audio = False
+        for jf in js_files:
+            with open(os.path.join(assets_dir, jf), encoding="utf-8") as f:
+                content = f.read()
+            if "polopad_audio_settings" in content and "CTS Olympic" in content:
+                found_audio = True
+                break
+        self.assertTrue(found_audio, "Audio synthesizer and pool deck voice announcer must be compiled into production bundle")
+
 
 
 if __name__ == "__main__":

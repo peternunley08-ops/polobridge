@@ -65,6 +65,11 @@
    - **Multi-Court Tournament Bracket**: 4-court championship structure (Quarterfinals, Semifinals, Consolation, Final) syncing scores directly from active game desks.
    - **Local Broadcast Relay**: BroadcastChannel `polopad_68sports_bridge` mirrors events locally across tabs.
    - **Tests**: `tests/test_six_eight_bridge.py` (5 architecture tests), `tests/test_playwright_e2e.py` (`test_08_six_eight_bridge_bundle`), and production bundle compilation.
+12. **Audio Synthesizer & Pool Deck Voice Announcer (`audio-synthesizer.ts`, `audio-announcer-panel.tsx`)**:
+   - **Web Audio Oscillators**: CTS Olympic dual-tone (220 Hz + 440 Hz lowpass filtered), Daktronics Omnisport (110 Hz + 220 Hz + 330 Hz harmonic stack), European LEN foghorn (185 Hz + 277 Hz minor third), and Fox-40 referee acoustic whistle (2800 Hz + 3120 Hz beating pair).
+   - **Web Speech API Announcer**: Automatic spoken callouts for goals (score recitation), exclusions (cap number and 20s duration), Rule WP 22.3 cap-out (3 personal fouls), timeout 15s warning, and shot clock violation.
+   - **SoundEngine Integration**: Unified routing through `audioSynthesizer` with master volume, timbre switching, and `polopad_audio_settings` persistence.
+   - **Tests**: `tests/test_audio_synthesizer.py` (5 architecture tests), `tests/test_playwright_e2e.py` (`test_09_audio_synthesizer_bundle`).
 
 ---
 

@@ -35,87 +35,21 @@ import {
   sixEightClient,
 } from './engine/six-eight-sports';
 import { sixEightBridge } from './engine/six-eight-bridge';
+import { AudioAnnouncerPanel } from './components/audio-announcer-panel';
+import { audioSynthesizer } from './engine/audio-synthesizer';
 
 // --- Web Audio Synthesizer (Pool Horn & Mechanical Clicks) ---
 class SoundEngine {
-  private ctx: AudioContext | null = null;
-
-  private init() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.ctx = new AudioCtx();
-    }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-  }
-
   playClick() {
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(1400, this.ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.015);
-      gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.015);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + 0.015);
-    } catch {
-      // Audio fallback
-    }
+    audioSynthesizer.playClick();
   }
 
   playHorn(durationMs = 1200) {
-    try {
-      this.init();
-      if (!this.ctx) return;
-      const dur = durationMs / 1000;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(265, this.ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(250, this.ctx.currentTime + dur);
-      gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + dur);
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-      osc.start();
-      osc.stop(this.ctx.currentTime + dur);
-    } catch {
-      // Audio fallback
-    }
+    audioSynthesizer.playHorn(durationMs);
   }
 
-  // Tournament Director attention chime: a rising two-note bell for match
-  // events (goal, period end), a falling square-wave pair for faults.
   playChime(tone: 'info' | 'warn' = 'info') {
-    try {
-      this.init();
-      const ctx = this.ctx;
-      if (!ctx) return;
-      const notes = tone === 'warn' ? [392, 311] : [659, 880];
-      notes.forEach((frequency, index) => {
-        const startAt = ctx.currentTime + index * 0.14;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = tone === 'warn' ? 'square' : 'sine';
-        osc.frequency.setValueAtTime(frequency, startAt);
-        gain.gain.setValueAtTime(0.0001, startAt);
-        gain.gain.exponentialRampToValueAtTime(tone === 'warn' ? 0.14 : 0.22, startAt + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, startAt + 0.13);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(startAt);
-        osc.stop(startAt + 0.14);
-      });
-    } catch {
-      // Audio fallback
-    }
+    audioSynthesizer.playChime(tone);
   }
 }
 
@@ -123,7 +57,7 @@ const sounds = new SoundEngine();
 
 // --- Types ---
 type Protocol = 'cts' | 'daktronics';
-export type ActiveTab = 'console' | 'offline' | 'tournament' | 'director' | 'flasher' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
+export type ActiveTab = 'console' | 'audio' | 'offline' | 'tournament' | 'director' | 'flasher' | 'landing' | 'bom' | 'sixeight' | 'mockups' | 'overlay' | 'rack' | 'scoresheet';
 
 interface Exclusion {
   id: string;
@@ -614,8 +548,10 @@ export default function App() {
         const timeout = activeTimeoutRef.current;
         if (timeout) {
           const step = advanceTimeout(timeout, elapsedMs);
-          // 15 seconds remaining warning horn (45s elapsed on 60s timeout)
-          if (step.crossedWarning) fireHornManual(600);
+          if (step.crossedWarning) {
+            fireHornManual(600);
+            audioSynthesizer.announceTimeoutWarning(15);
+          }
           if (step.expired) fireHornManual(1500);
           setActiveTimeout(step.timeout);
         }
@@ -635,10 +571,12 @@ export default function App() {
           if (step.expiry === 'period') {
             setIsRunning(false);
             fireHornManual(2200);
+            audioSynthesizer.announcePeriodEnd(period, scoreWhite, scoreDark);
           } else if (step.expiry === 'shot-clock') {
             setIsRunning(false);
             bleManager.sendStop();
             fireHornManual(1500);
+            audioSynthesizer.announceShotClockViolation();
           }
         }
       }
@@ -774,6 +712,7 @@ export default function App() {
     const durMs = type === '60s' ? 60 * 1000 : 30 * 1000;
     setActiveTimeout({ team, type, remainingMs: durMs, warned15s: false });
     const tName = team === 'white' ? teamWhiteName : teamDarkName;
+    audioSynthesizer.announceTimeout(team === 'white' ? 'White' : 'Dark', type === '30s');
     logSixEightEvent('MATCH_SYNC', `${type} Team Timeout called by ${tName}`, team);
   };
 
@@ -796,6 +735,7 @@ export default function App() {
         setExclusions(prev => prev.filter(e => e.team !== 'dark'));
         setShotTimeMs(30 * 1000);
         bleManager.sendReset30();
+        audioSynthesizer.announceGoal('White', undefined, { white: nextScore, dark: scoreDark });
         logSixEightEvent('GOAL', `GOAL by ${teamWhiteName} (Defending Dark penalties auto-released per Rule WP 21)`, 'white', undefined, undefined, nextScore, scoreDark);
       }
     } else {
@@ -811,6 +751,7 @@ export default function App() {
         setExclusions(prev => prev.filter(e => e.team !== 'white'));
         setShotTimeMs(30 * 1000);
         bleManager.sendReset30();
+        audioSynthesizer.announceGoal('Dark', undefined, { white: scoreWhite, dark: nextScore });
         logSixEightEvent('GOAL', `GOAL by ${teamDarkName} (Defending White penalties auto-released per Rule WP 21)`, 'dark', undefined, undefined, scoreWhite, nextScore);
       }
     }
@@ -914,6 +855,12 @@ export default function App() {
       setWhiteRoster(prev => prev.map(p => (p.cap === cap ? { ...p, exclusions: p.exclusions + 1 } : p)));
     } else {
       setDarkRoster(prev => prev.map(p => (p.cap === cap ? { ...p, exclusions: p.exclusions + 1 } : p)));
+    }
+
+    if (newFoulCount >= 3) {
+      audioSynthesizer.announceCapOut(team === 'white' ? 'White' : 'Dark', cap);
+    } else {
+      audioSynthesizer.announceExclusion(team === 'white' ? 'White' : 'Dark', cap, 20);
     }
 
     logSixEightEvent(
@@ -1052,6 +999,7 @@ export default function App() {
         <div className="flex items-center gap-1 bg-sky-950/70 p-1 rounded-xl border border-cyan-400/30 shadow-inner overflow-x-auto">
           {[
             { id: 'console', label: 'Console', icon: Layers },
+            { id: 'audio', label: 'Audio & Voice', icon: Volume2 },
             { id: 'offline', label: 'Offline & IDB', icon: Database },
             { id: 'flasher', label: 'USB Flasher & QC', icon: Zap },
             { id: 'tournament', label: 'Auto-Finder & Hub', icon: Compass },
@@ -2204,6 +2152,11 @@ export default function App() {
             }}
             onForceResyncBle={forceResyncBleHardware}
           />
+        )}
+
+        {/* VIEW N: AUDIO SYNTHESIZER & POOL DECK VOICE ANNOUNCER */}
+        {activeTab === 'audio' && (
+          <AudioAnnouncerPanel onBackToConsole={() => setActiveTab('console')} />
         )}
 
       </main>
