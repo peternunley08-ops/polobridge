@@ -438,6 +438,58 @@ async function inviteScenario(browser, baseUrl) {
   await context.close();
 }
 
+async function clockScenario(browser, baseUrl) {
+  console.log('\nConsole clock accuracy');
+
+  const context = await browser.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: 'block' });
+  const page = await context.newPage();
+  await page.goto(baseUrl);
+  await page.getByText('MASTER GAME CLOCK').waitFor();
+
+  await check('the running game clock keeps wall time over 15 s (no cumulative drift)', async () => {
+    const sample = async () => ({ ms: clockToMs(await consoleGameClock(page)), wall: await page.evaluate(() => performance.now()) });
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(500);
+    const first = await sample();
+    await page.waitForTimeout(15000);
+    const second = await sample();
+    await page.keyboard.press('Space');
+    const lostMs = second.wall - first.wall - (first.ms - second.ms);
+    // The display has 100 ms resolution, so allow one tick either way plus scheduling noise.
+    expect(Math.abs(lostMs) <= 150, `clock differs from wall time by ${lostMs.toFixed(0)} ms over 15 s`);
+  });
+  await context.close();
+
+  // A tablet that slept or a throttled tab: timers are held, then fire once.
+  const heldContext = await browser.newContext({ viewport: { width: 1366, height: 900 }, serviceWorkers: 'block' });
+  const held = await heldContext.newPage();
+  await held.clock.install();
+  await held.goto(baseUrl);
+  await held.getByText('MASTER GAME CLOCK').waitFor();
+  await held.clock.pauseAt(new Date(Date.now() + 60000));
+
+  await check('ticks one tenth at a time in normal running', async () => {
+    expectEqual(await consoleGameClock(held), '08:00.0', 'fresh match');
+    await held.keyboard.press('Space');
+    await held.clock.runFor(1000);
+    await eventually(() => consoleGameClock(held), (value) => value === '07:59.0', 'after one second of ticks');
+  });
+
+  await check('after timers are held for 10 s the clock catches up in one step', async () => {
+    await held.clock.fastForward(10000);
+    await eventually(() => consoleGameClock(held), (value) => value === '07:49.0', 'after a 10 s pause');
+  });
+
+  await check('a shot clock that ran out during a long pause stops both clocks at the violation instant', async () => {
+    // 19.0 s were left on the shot clock, so play stopped 19 s into the 60 s pause.
+    await held.clock.fastForward(60000);
+    await eventually(() => consoleGameClock(held), (value) => value === '07:30.0', 'game clock at the shot-clock violation');
+    await held.clock.runFor(2000);
+    expectEqual(await consoleGameClock(held), '07:30.0', 'clock stays stopped');
+  });
+  await heldContext.close();
+}
+
 async function relayScenario(browser, baseUrl) {
   console.log(`\nTwo isolated devices through the relay at ${RELAY_URL}`);
   // Separate contexts share nothing: no BroadcastChannel, no storage. Only the relay connects them.
@@ -530,6 +582,7 @@ async function relayScenario(browser, baseUrl) {
   try {
     await sameDeviceScenarios(browser, baseUrl);
     await inviteScenario(browser, baseUrl);
+    await clockScenario(browser, baseUrl);
     if (RELAY_URL) await relayScenario(browser, baseUrl);
     else console.log('\nRelay scenario skipped (set COURT_RELAY_URL to run it).');
   } finally {

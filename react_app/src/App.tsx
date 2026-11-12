@@ -17,7 +17,9 @@ import OfflineResiliencePanel from './components/offline-resilience-panel';
 import { DigitalScoresheetPanel } from './components/digital-scoresheet-panel';
 import TournamentDirectorHub from './components/tournament-director-hub';
 import { useCourtLinkStatus } from './components/use-court-link';
+import { useLiveState } from './components/use-live-state';
 import { capsCappedOut } from './engine/court-link';
+import { CLOCK_TICK_MS, TickAccumulator, advanceExclusions, advanceMatchClocks, advanceTimeout } from './engine/match-clock';
 import { courtLinkSession } from './engine/court-link-session';
 import { parseInviteHash } from './engine/court-link-transports';
 import { TeamRoster, MatchEventLogEntry, createDefaultRoster } from './engine/roster-manager';
@@ -169,9 +171,10 @@ export default function App() {
   const [bleError, setBleError] = useState<string | null>(null);
 
   // Match Clocks & State
-  const [isRunning, setIsRunning] = useState<boolean>(false); // Always boot paused for referee safety
-  const [gameTimeMs, setGameTimeMs] = useState<number>(initialMirror?.gameTimeMs ?? 8 * 60 * 1000);
-  const [shotTimeMs, setShotTimeMs] = useState<number>(initialMirror?.shotTimeMs ?? 30 * 1000);
+  // Live state: the clock engine reads these through refs, so it always sees the newest value.
+  const [isRunning, setIsRunning, isRunningRef] = useLiveState<boolean>(false); // Always boot paused for referee safety
+  const [gameTimeMs, setGameTimeMs, gameTimeRef] = useLiveState<number>(initialMirror?.gameTimeMs ?? 8 * 60 * 1000);
+  const [shotTimeMs, setShotTimeMs, shotTimeRef] = useLiveState<number>(initialMirror?.shotTimeMs ?? 30 * 1000);
   const [period, setPeriod] = useState<number>(initialMirror?.period ?? 1);
   const [isHornActive, setIsHornActive] = useState<boolean>(false);
 
@@ -197,7 +200,7 @@ export default function App() {
   const [timeoutsDark, setTimeoutsDark] = useState<{ full: number; short: number }>(
     initialMirror?.timeoutsDark || { full: 3, short: 1 }
   );
-  const [activeTimeout, setActiveTimeout] = useState<ActiveTimeoutState | null>(null);
+  const [activeTimeout, setActiveTimeout, activeTimeoutRef] = useLiveState<ActiveTimeoutState | null>(null);
 
   // Penalty Shootout (PSO) 5-Round + Sudden Death Scorecard
   const [shootoutRounds, setShootoutRounds] = useState<ShootoutShot[]>(
@@ -591,65 +594,59 @@ export default function App() {
   // Rule WP 20.15: Automatic Shot Clock Blanking
   const isBlanked = gameTimeMs <= shotTimeMs;
 
-  // Clock Ticker Engine (10Hz / 100ms) + Timeout Countdown Engine
+  // Clock Ticker Engine (100ms ticks, wall-clock anchored) + Timeout Countdown Engine
+  // Ticks are counted against the wall clock, not against timer callbacks: a late
+  // timer, a throttled tab or a tablet that slept is caught up on the next callback.
+  const hasActiveTimeout = activeTimeout !== null;
   useEffect(() => {
-    const timer = setInterval(() => {
-      // Active Team Timeout Countdown (60s or 30s)
-      if (activeTimeout) {
-        setActiveTimeout(prev => {
-          if (!prev) return null;
-          const nextMs = prev.remainingMs - 100;
-          // 15 seconds remaining warning horn (45s elapsed on 60s timeout)
-          if (prev.type === '60s' && !prev.warned15s && nextMs <= 15000 && nextMs > 14000) {
-            fireHornManual(600);
-            return { ...prev, remainingMs: nextMs, warned15s: true };
-          }
-          if (nextMs <= 0) {
-            fireHornManual(1500);
-            return null;
-          }
-          return { ...prev, remainingMs: nextMs };
-        });
-      }
+    if (!isRunning && !hasActiveTimeout) return undefined;
 
-      if (isRunning) {
-        // Game Clock
-        setGameTimeMs(g => {
-          if (g <= 100) {
+    const accumulator = new TickAccumulator(Date.now());
+    let timer: ReturnType<typeof setTimeout>;
+
+    const onTimer = () => {
+      const ticks = accumulator.consume(Date.now());
+      if (ticks > 0) {
+        const elapsedMs = ticks * CLOCK_TICK_MS;
+
+        // Active Team Timeout Countdown (60s or 30s) runs in real time
+        const timeout = activeTimeoutRef.current;
+        if (timeout) {
+          const step = advanceTimeout(timeout, elapsedMs);
+          // 15 seconds remaining warning horn (45s elapsed on 60s timeout)
+          if (step.crossedWarning) fireHornManual(600);
+          if (step.expired) fireHornManual(1500);
+          setActiveTimeout(step.timeout);
+        }
+
+        if (isRunningRef.current) {
+          // Official Rule: a 0.0 shot clock stops BOTH Game & Shot Clocks (1500ms violation horn);
+          // a 0.0 game clock ends the period (2200ms horn).
+          const step = advanceMatchClocks(
+            { gameTimeMs: gameTimeRef.current, shotTimeMs: shotTimeRef.current },
+            elapsedMs
+          );
+          setGameTimeMs(step.gameTimeMs);
+          setShotTimeMs(step.shotTimeMs);
+          // Exclusions count down with the game clock (auto-remove when served)
+          setExclusions(prev => advanceExclusions(prev, step.ranForMs));
+
+          if (step.expiry === 'period') {
             setIsRunning(false);
             fireHornManual(2200);
-            return 0;
+          } else if (step.expiry === 'shot-clock') {
+            setIsRunning(false);
+            bleManager.sendStop();
+            fireHornManual(1500);
           }
-          return g - 100;
-        });
-
-        // Shot Clock (Official Rule: Stops BOTH Game & Shot Clocks at 0.0s with 1500ms violation horn!)
-        setShotTimeMs(s => {
-          if (s <= 100) {
-            if (gameTimeMs > 100) {
-              setIsRunning(false);
-              bleManager.sendStop();
-              fireHornManual(1500);
-            }
-            return 0;
-          }
-          return s - 100;
-        });
-
-        // Exclusions (auto-remove when expired after flashing 0s)
-        setExclusions(prev => 
-          prev
-            .map(e => ({
-              ...e,
-              remaining: Math.max(0, e.remaining - 0.1)
-            }))
-            .filter(e => e.remaining > 0.05)
-        );
+        }
       }
-    }, 100);
+      timer = setTimeout(onTimer, accumulator.msUntilNextTick(Date.now()));
+    };
 
-    return () => clearInterval(timer);
-  }, [isRunning, gameTimeMs, activeTimeout, fireHornManual]);
+    timer = setTimeout(onTimer, CLOCK_TICK_MS);
+    return () => clearTimeout(timer);
+  }, [isRunning, hasActiveTimeout, fireHornManual, isRunningRef, gameTimeRef, shotTimeRef, activeTimeoutRef, setIsRunning, setGameTimeMs, setShotTimeMs, setActiveTimeout]);
 
   // Serial Bus Frame Logger (10Hz Emulation)
   useEffect(() => {

@@ -21,6 +21,8 @@
  * reset a clock on any desk.
  */
 
+import { ClockExpiry, advanceMatchClocks } from './match-clock';
+
 // ---------------------------------------------------------------------------
 // Protocol constants
 // ---------------------------------------------------------------------------
@@ -625,7 +627,7 @@ export function parseCourtFrame(raw: unknown, expectedRoom: string): ParsedCourt
 // Clock projection (dead reckoning)
 // ---------------------------------------------------------------------------
 
-export type CourtClockExpiry = 'none' | 'shot-clock' | 'period';
+export type CourtClockExpiry = ClockExpiry;
 
 export interface CourtProjection {
   gameTimeMs: number;
@@ -654,15 +656,12 @@ export interface CourtProjection {
  */
 export function projectSnapshot(snapshot: CourtSnapshot, elapsedMs: number): CourtProjection {
   const elapsed = Number.isFinite(elapsedMs) ? Math.max(0, elapsedMs) : 0;
-  const runway = Math.min(snapshot.gameTimeMs, snapshot.shotTimeMs);
-  const ranFor = snapshot.isRunning ? Math.min(elapsed, runway) : 0;
-  const ranOut = snapshot.isRunning && elapsed >= runway;
-
-  const gameTimeMs = snapshot.gameTimeMs - ranFor;
-  const shotTimeMs = snapshot.shotTimeMs - ranFor;
-
-  let expiry: CourtClockExpiry = 'none';
-  if (ranOut) expiry = snapshot.gameTimeMs <= snapshot.shotTimeMs ? 'period' : 'shot-clock';
+  // The console's own clock engine decides when the clocks stop.
+  const step = advanceMatchClocks(snapshot, snapshot.isRunning ? elapsed : 0);
+  const ranFor = step.ranForMs;
+  const expiry: CourtClockExpiry = snapshot.isRunning ? step.expiry : 'none';
+  const ranOut = expiry !== 'none';
+  const { gameTimeMs, shotTimeMs } = step;
 
   const exclusions = snapshot.exclusions
     .map((exclusion) => ({ ...exclusion, remainingMs: exclusion.remainingMs - ranFor }))
