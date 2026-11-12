@@ -8,7 +8,7 @@ tags:
   - multi-court
   - cloudflare-relay
 status: verified-locally-relay-not-deployed
-updated: 2026-11-10
+updated: 2026-11-12
 ---
 
 # PoloPad Pro — Tournament Director 4-Court Dashboard & Court Link
@@ -130,11 +130,23 @@ Same-device linking needs none of these steps.
 - The relay was verified locally under the Workers runtime (`wrangler dev`). It has not been verified on Cloudflare's network.
 - The dashboard is informational. The desk remains the official clock.
 
+## Shared clock engine
+
+The scoring console and the director's projection use one clock function, `advanceMatchClocks`, in `react_app/src/engine/match-clock.ts`.
+
+- The console counts whole 100 ms ticks against the wall clock and carries the remainder, so a late timer or a tablet that slept is caught up on the next callback.
+- `useLiveState` (`react_app/src/components/use-live-state.ts`) keeps each clock value in React state and in a ref that is written first, so the timer loop reads current values without being restarted on every tick.
+- The previous loop subtracted 100 ms per timer callback and ran slow: about 0.4 s lost in 20 s in headless Chromium.
+- Shared stop rule: a 0.0 shot clock stops both clocks, and a 0.0 game clock ends the period. Desk and dashboard apply the same rule.
+- Intended difference: after a pause, the clock jumps forward by the time that really passed.
+- Tests: 33 in `react_app/tests/match-clock.test.ts`, including a comparison with the previous tick loop over 36,000 start states and tick counts (identical results).
+- Not yet checked on a physical iPad or phone.
+
 ## Verification
 
-Verification commands and results from 2026-11-10:
+Verification commands and results from 2026-11-10, except where a later date is given:
 
-- **Engine tests**: **217** TypeScript tests on the engine source, using the Node built-in test runner. Result: 217/217. Run in `react_app/`:
+- **Engine tests**: **250** TypeScript tests on the engine source, using the Node built-in test runner. Result: 250/250 on 2026-11-12, made up of **217** court-link tests plus **33** clock tests in `match-clock.test.ts`. Run in `react_app/`:
 
   ```bash
   npm test
