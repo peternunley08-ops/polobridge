@@ -19,6 +19,11 @@
   "sessions": [
     {
       "date": "2026-11-12",
+      "milestone": "Live 6-8 Sports Cloud Sync & WebSocket Bridge (six-eight-bridge.ts, six-eight-panel.tsx) with protocol 6-8-gamedesk-v2, 500ms-8000ms exponential backoff auto-reconnect, multi-court tournament bracket sync, BroadcastChannel fan-out, and offline buffer queue",
+      "qa_status": "100% PASS (Six-Eight Bridge Tests 5/5 + Playwright E2E 8/8 + Engine TypeScript Tests 250/250 + Agent Definitions 6/6 + Tournament Director 5/5 + Scoresheet 5/5 + Persistence 5/5 + Phone 5/5 + Flasher 4/4 + Rules 4/4 + DRC 5/5 + Code Review 4/4 + Black October 22/22)"
+    },
+    {
+      "date": "2026-11-12",
       "milestone": "Wall-clock console clock (match-clock.ts, use-live-state.ts) shared with the director's projection, and four Haiku delegation agents in .claude/agents (repo-scout, check-runner, doc-scribe, convention-test-writer) with the delegation rule in AGENTS.md section 4",
       "qa_status": "Engine TypeScript tests 250/250 (npm test) + tests/test_agent_definitions.py 6/6 + existing Python suites + browser end-to-end suite in Chromium 24/24 (31/31 with a local relay). Clock fix not yet checked on a physical iPad. Agent definitions parse and were dry-run on Haiku; loading them by name was not tested because agents load when a session starts."
     },

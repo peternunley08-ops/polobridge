@@ -58,6 +58,13 @@
    - **Shared Stop Rule**: The director's projection calls the same `advanceMatchClocks` function. A `0.0` shot clock stops both clocks; a `0.0` game clock ends the period. After a pause, the clock jumps forward by the time that really passed (intended).
    - **Tests**: `react_app/tests/match-clock.test.ts` (33 tests, including a comparison with the previous tick loop over `36,000` start states and tick counts, identical results). Engine suite `npm test`: 250/250 on 2026-11-12.
    - **Not Yet Checked**: On a physical iPad or phone.
+11. **Live 6-8 Sports Cloud Sync & WebSocket Bridge (`six-eight-bridge.ts`, `six-eight-panel.tsx`)**:
+   - **Protocol**: `6-8-gamedesk-v2` with sequence numbering, message types (`desk.heartbeat`, `desk.match_state`, `desk.score_update`, `desk.exclusion_issued`, `desk.pi_event`), and live RTT tracking.
+   - **Exponential Backoff**: Reconnect delay begins at `500 ms`, doubles each attempt (`1000 ms`, `2000 ms`, `4000 ms`), capped at `8000 ms`.
+   - **Offline Buffer Guarantee**: Telemetry is buffered in memory and storage during Wi-Fi drops and replayed chronologically with zero data loss upon reconnect.
+   - **Multi-Court Tournament Bracket**: 4-court championship structure (Quarterfinals, Semifinals, Consolation, Final) syncing scores directly from active game desks.
+   - **Local Broadcast Relay**: BroadcastChannel `polopad_68sports_bridge` mirrors events locally across tabs.
+   - **Tests**: `tests/test_six_eight_bridge.py` (5 architecture tests), `tests/test_playwright_e2e.py` (`test_08_six_eight_bridge_bundle`), and production bundle compilation.
 
 ---
 

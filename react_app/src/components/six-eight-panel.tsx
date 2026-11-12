@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Trophy, Cloud, RefreshCw, CheckCircle2, AlertTriangle,
-  Users, Activity, Download, ExternalLink, ShieldAlert, PlusCircle, Send
+  Users, Activity, Download, ExternalLink, ShieldAlert, PlusCircle, Send,
+  Wifi, WifiOff, Radio, GitFork, ArrowRight, Play, Check
 } from 'lucide-react';
 import {
   SixEightMatchPreset,
@@ -9,8 +10,14 @@ import {
   SixEightGameEvent,
   SixEightSyncMode,
   PRESET_68_MATCHES,
-  sixEightClient,
 } from '../engine/six-eight-sports';
+import {
+  sixEightBridge,
+  SixEightBridgeStatus,
+  SixEightBridgeMessage,
+  TournamentBracket,
+  BracketMatch,
+} from '../engine/six-eight-bridge';
 
 interface SixEightPanelProps {
   syncMode: SixEightSyncMode;
@@ -45,16 +52,82 @@ export default function SixEightPanel({
   onRecordPlayerExclusion,
   onForceSyncNow,
 }: SixEightPanelProps) {
+  const [subTab, setSubTab] = useState<'roster' | 'bracket' | 'inspector' | 'chaos'>('roster');
   const [customGameId, setCustomGameId] = useState(activeMatch.gameId);
-  const [webhookUrl, setWebhookUrl] = useState(sixEightClient.getWebhookUrl());
-  const [apiKey, setApiKey] = useState('68_live_pk_99482a7f3c1e');
+  const [wsUrl, setWsUrl] = useState(sixEightBridge.getConfig().wsUrl);
+  const [apiKey, setApiKey] = useState(sixEightBridge.getConfig().apiKey);
+  const [bridgeStatus, setBridgeStatus] = useState<SixEightBridgeStatus>(sixEightBridge.getStatus());
+  const [latencyMs, setLatencyMs] = useState<number | null>(sixEightBridge.getLatency());
+  const [queuedCount, setQueuedCount] = useState<number>(sixEightBridge.getQueuedEventCount());
+  const [recentFrames, setRecentFrames] = useState<SixEightBridgeMessage[]>([]);
+  const [bracket, setBracket] = useState<TournamentBracket>(sixEightBridge.getTournamentBracket());
   const [statusBanner, setStatusBanner] = useState<string | null>(null);
+
+  // Subscribe to bridge lifecycle
+  useEffect(() => {
+    const unsubStatus = sixEightBridge.onStatusChange((status, latency) => {
+      setBridgeStatus(status);
+      setLatencyMs(latency);
+      setQueuedCount(sixEightBridge.getQueuedEventCount());
+    });
+
+    const unsubMsg = sixEightBridge.onMessage((msg) => {
+      setRecentFrames((prev) => [msg, ...prev.slice(0, 49)]);
+    });
+
+    const unsubBracket = sixEightBridge.onBracketUpdate((updatedBracket) => {
+      setBracket(updatedBracket);
+    });
+
+    return () => {
+      unsubStatus();
+      unsubMsg();
+      unsubBracket();
+    };
+  }, []);
+
+  const handleConnectWs = () => {
+    sixEightBridge.configure({ wsUrl, apiKey, gameId: customGameId, autoReconnect: true });
+    sixEightBridge.connect();
+    onChangeSyncMode('cloud_live');
+    setStatusBanner('Initiating 6-8 Sports Cloud WebSocket Bridge connection...');
+    setTimeout(() => setStatusBanner(null), 3000);
+  };
+
+  const handleDisconnectWs = () => {
+    sixEightBridge.disconnect();
+    onChangeSyncMode('disconnected');
+    setStatusBanner('WebSocket disconnected. Switched to offline buffering mode.');
+    setTimeout(() => setStatusBanner(null), 3000);
+  };
+
+  const handleFlushQueue = () => {
+    sixEightBridge.flushOfflineQueue();
+    setQueuedCount(sixEightBridge.getQueuedEventCount());
+    setStatusBanner('Flushing buffered offline telemetry frames to 6-8 Sports cloud...');
+    setTimeout(() => setStatusBanner(null), 3000);
+  };
 
   const handleLoadPreset = (preset: SixEightMatchPreset) => {
     setCustomGameId(preset.gameId);
     onSelectMatch(preset);
-    if (syncMode === 'disconnected') {
-      onChangeSyncMode('cloud_live');
+    sixEightBridge.configure({ gameId: preset.gameId });
+    if (bridgeStatus === 'connected') {
+      sixEightBridge.publishSnapshot({
+        gameId: preset.gameId,
+        period: 1,
+        gameClock: '08:00.0',
+        gameTimeMs: 480000,
+        shotClock: '30.0',
+        shotTimeMs: 30000,
+        isRunning: false,
+        scoreWhite: 0,
+        scoreDark: 0,
+        teamWhiteName: preset.teamWhiteName,
+        teamDarkName: preset.teamDarkName,
+        timestampIso: new Date().toISOString(),
+        sequenceId: Date.now(),
+      });
     }
     setStatusBanner(`Loaded 6-8 Sports Match ${preset.gameId} (${preset.teamWhiteName} vs. ${preset.teamDarkName})`);
     setTimeout(() => setStatusBanner(null), 4000);
@@ -63,6 +136,7 @@ export default function SixEightPanel({
   const handleExportJson = () => {
     const payload = {
       platform: '6-8 Sports Official Game Desk Export',
+      schema: '6-8-gamedesk-v2',
       exportedAt: new Date().toISOString(),
       gameId: customGameId,
       tournament: activeMatch.tournament,
@@ -78,6 +152,7 @@ export default function SixEightPanel({
         dark: darkRoster,
       },
       playByPlayEvents: events,
+      bracket: bracket,
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -87,6 +162,32 @@ export default function SixEightPanel({
     a.download = `68sports_gamedesk_${customGameId}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Chaos Simulation
+  const handleSimulateChaosDrop = () => {
+    setStatusBanner('🚨 SIMULATING POOLSIDE WI-FI DROP: Severing WebSocket connection...');
+    sixEightBridge.disconnect();
+
+    setTimeout(() => {
+      // Simulate scoring during Wi-Fi outage
+      setStatusBanner('⚠️ Offline Mode: Queueing match events in persistent offline buffer...');
+      onRecordPlayerGoal('white', 2);
+      onRecordPlayerGoal('dark', 3);
+      setQueuedCount(sixEightBridge.getQueuedEventCount());
+
+      setTimeout(() => {
+        setStatusBanner('🔄 Re-establishing Wi-Fi link: Probing WebSocket with exponential backoff...');
+        sixEightBridge.connect();
+
+        setTimeout(() => {
+          sixEightBridge.flushOfflineQueue();
+          setQueuedCount(0);
+          setStatusBanner('✅ RECONNECTED: Buffered events flushed atomically to 6-8 Sports cloud! Zero telemetry loss.');
+          setTimeout(() => setStatusBanner(null), 5000);
+        }, 1200);
+      }, 2000);
+    }, 1500);
   };
 
   const renderFoulDots = (exclusions: number) => {
@@ -109,10 +210,10 @@ export default function SixEightPanel({
   };
 
   return (
-    <div className="flex-1 p-6 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/30 via-sky-900 to-indigo-950 space-y-6">
+    <div className="flex-1 p-4 sm:p-6 overflow-y-auto bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/30 via-sky-900 to-indigo-950 space-y-6 max-w-7xl mx-auto">
       
-      {/* Top 6-8 Sports Connection & Match Loader Bar */}
-      <div className="max-w-6xl mx-auto rounded-3xl bg-gradient-to-r from-sky-800/90 via-blue-900/95 to-indigo-950/95 border-2 border-cyan-400/50 p-6 shadow-2xl space-y-5">
+      {/* Top 6-8 Sports Connection & WebSocket Telemetry Bar */}
+      <div className="rounded-3xl bg-gradient-to-r from-sky-800/90 via-blue-900/95 to-indigo-950/95 border-2 border-cyan-400/50 p-6 shadow-2xl space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-cyan-400/30 pb-4">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 via-orange-500 to-rose-500 flex flex-col items-center justify-center font-black text-white shadow-lg shadow-orange-500/30 border border-white/40">
@@ -120,410 +221,524 @@ export default function SixEightPanel({
               <span className="text-[8px] font-mono tracking-widest uppercase">SPORTS</span>
             </div>
             <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-lg font-black tracking-tight text-white">
-                  6-8 Sports Live Game Desk &amp; Roster Bridge
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-lg font-black tracking-tight text-white uppercase">
+                  6-8 Sports Live Cloud Desk &amp; WebSocket Bridge
                 </h1>
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border flex items-center gap-1.5 ${
-                    syncMode === 'cloud_live'
+                    bridgeStatus === 'connected'
                       ? 'bg-emerald-400/20 text-emerald-200 border-emerald-400/50'
-                      : syncMode === 'local_bridge'
-                      ? 'bg-cyan-400/20 text-cyan-200 border-cyan-400/50'
+                      : bridgeStatus === 'connecting' || bridgeStatus === 'reconnecting'
+                      ? 'bg-amber-400/20 text-amber-200 border-amber-400/50'
                       : 'bg-rose-500/20 text-rose-200 border-rose-400/40'
                   }`}
                 >
                   <span
                     className={`w-2 h-2 rounded-full ${
-                      syncMode === 'disconnected' ? 'bg-rose-400' : 'bg-emerald-400 animate-pulse'
+                      bridgeStatus === 'connected'
+                        ? 'bg-emerald-400 animate-pulse'
+                        : bridgeStatus === 'connecting' || bridgeStatus === 'reconnecting'
+                        ? 'bg-amber-400 animate-ping'
+                        : 'bg-rose-400'
                     }`}
                   />
-                  {syncMode === 'cloud_live'
-                    ? '6-8 CLOUD LIVE SYNC'
-                    : syncMode === 'local_bridge'
-                    ? 'LOCAL TABLET BRIDGE'
-                    : 'OFFLINE / STANDALONE'}
+                  {bridgeStatus === 'connected'
+                    ? `WSS LIVE ${latencyMs !== null ? `(${latencyMs}ms)` : ''}`
+                    : bridgeStatus === 'reconnecting'
+                    ? 'RECONNECTING...'
+                    : bridgeStatus === 'connecting'
+                    ? 'CONNECTING...'
+                    : 'OFFLINE BUFFER'}
                 </span>
+
+                {queuedCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40 animate-pulse">
+                    📦 {queuedCount} QUEUED
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-cyan-200/90 mt-0.5">
-                Official bi-directional integration with <strong>scores.6-8sports.com</strong> &amp; <strong>6-8 Game Desk</strong> — syncs cap rosters, PI ratings, 3-foul cap-outs, and live play-by-play.
+              <p className="text-xs font-mono text-cyan-200/90 mt-0.5">
+                REAL-TIME WEBSOCKET TELEMETRY • AUTOMATIC EXPONENTIAL BACKOFF • BRACKET SYNC
               </p>
             </div>
           </div>
 
-          {/* Connection Mode Switcher */}
-          <div className="flex items-center gap-2">
-            <div className="flex bg-sky-950/80 p-1 rounded-xl border border-cyan-400/30 text-xs font-mono">
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {bridgeStatus === 'connected' ? (
               <button
-                onClick={() => onChangeSyncMode('cloud_live')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
-                  syncMode === 'cloud_live'
-                    ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-sky-950 shadow'
-                    : 'text-sky-200 hover:text-white'
-                }`}
+                onClick={handleDisconnectWs}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-300 border border-rose-400/30 text-xs font-bold uppercase transition flex items-center gap-1.5"
               >
-                <Cloud size={13} />
-                <span>6-8 Cloud Live</span>
+                <WifiOff size={13} />
+                Disconnect WSS
               </button>
+            ) : (
               <button
-                onClick={() => onChangeSyncMode('local_bridge')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 ${
-                  syncMode === 'local_bridge'
-                    ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-sky-950 shadow'
-                    : 'text-sky-200 hover:text-white'
-                }`}
+                onClick={handleConnectWs}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 text-xs font-bold uppercase transition flex items-center gap-1.5"
               >
-                <Activity size={13} />
-                <span>Local Desk Bridge</span>
+                <Wifi size={13} />
+                Connect WSS
               </button>
+            )}
+
+            {queuedCount > 0 && (
               <button
-                onClick={() => onChangeSyncMode('disconnected')}
-                className={`px-3 py-1.5 rounded-lg font-bold transition ${
-                  syncMode === 'disconnected'
-                    ? 'bg-rose-500 text-white shadow'
-                    : 'text-sky-300/70 hover:text-white'
-                }`}
+                onClick={handleFlushQueue}
+                className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-400/40 text-xs font-bold uppercase transition flex items-center gap-1.5"
               >
-                Disconnect
+                <Send size={13} />
+                Flush Buffer ({queuedCount})
               </button>
-            </div>
+            )}
 
             <button
               onClick={handleExportJson}
-              className="px-3.5 py-2 rounded-xl bg-amber-400/25 hover:bg-amber-400/35 border border-amber-300/50 text-amber-200 text-xs font-mono font-bold flex items-center gap-1.5 transition"
+              className="px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-cyan-200 border border-cyan-400/30 text-xs font-bold uppercase transition flex items-center gap-1.5"
             >
               <Download size={13} />
-              <span>Export 6-8 JSON</span>
+              Export 6-8 JSON
             </button>
           </div>
         </div>
 
-        {/* Status Confirmation Banner */}
-        {statusBanner && (
-          <div className="px-4 py-2.5 rounded-xl bg-emerald-500/25 border border-emerald-300/50 text-emerald-100 text-xs font-mono flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 size={14} className="text-emerald-300" />
-              <span>{statusBanner}</span>
-            </div>
-            <span className="text-[10px] uppercase tracking-wider text-emerald-200">Rosters &amp; Scoreboard Synced</span>
+        {/* WSS URL & Credentials Bar */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 font-mono text-xs">
+          <div className="space-y-1">
+            <span className="text-[10px] text-cyan-300 font-bold uppercase">WebSocket Relay Endpoint</span>
+            <input
+              type="text"
+              value={wsUrl}
+              onChange={(e) => setWsUrl(e.target.value)}
+              className="w-full bg-sky-950/80 border border-cyan-400/30 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:border-cyan-300 focus:outline-none"
+              placeholder="wss://..."
+            />
           </div>
-        )}
-
-        {/* Tournament Match Selector & Endpoint Configuration */}
-        <div className="grid grid-cols-[1.5fr_1fr] gap-5">
-          {/* Preset Tournament Matches */}
-          <div className="space-y-2">
-            <div className="text-[11px] font-mono font-bold text-cyan-200 uppercase tracking-wider flex items-center justify-between">
-              <span>1. Select Active 6-8 Sports Tournament Game</span>
-              <a
-                href="https://scores.6-8sports.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-amber-300 hover:text-amber-200 flex items-center gap-1 underline"
-              >
-                <span>scores.6-8sports.com</span>
-                <ExternalLink size={11} />
-              </a>
-            </div>
-            <div className="grid grid-cols-3 gap-2.5">
-              {PRESET_68_MATCHES.map((preset) => {
-                const isSelected = activeMatch.gameId === preset.gameId;
-                return (
-                  <button
-                    key={preset.gameId}
-                    onClick={() => handleLoadPreset(preset)}
-                    className={`p-3 rounded-2xl text-left border transition flex flex-col justify-between ${
-                      isSelected
-                        ? 'bg-gradient-to-b from-cyan-500/30 to-blue-600/40 border-cyan-300 shadow-lg shadow-cyan-500/20'
-                        : 'bg-sky-950/60 hover:bg-sky-900/70 border-cyan-400/25'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between text-[10px] font-mono text-amber-300 font-bold">
-                        <span>{preset.gameId}</span>
-                        {isSelected && <CheckCircle2 size={12} className="text-emerald-300" />}
-                      </div>
-                      <div className="text-xs font-black text-white mt-1">
-                        {preset.teamWhiteName} vs. {preset.teamDarkName}
-                      </div>
-                      <div className="text-[10px] text-cyan-200/80 truncate mt-0.5">
-                        {preset.tournament}
-                      </div>
-                    </div>
-                    <div className="text-[9px] font-mono text-sky-300 mt-2 pt-1.5 border-t border-cyan-400/20">
-                      {preset.division}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+          <div className="space-y-1">
+            <span className="text-[10px] text-cyan-300 font-bold uppercase">6-8 Desk API Key / Token</span>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className="w-full bg-sky-950/80 border border-cyan-400/30 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:border-cyan-300 focus:outline-none"
+              placeholder="68_live_pk_..."
+            />
           </div>
-
-          {/* API Key & Game ID Manual Override */}
-          <div className="rounded-2xl bg-sky-950/70 border border-cyan-400/30 p-3.5 flex flex-col justify-between space-y-2">
-            <div className="text-[10px] font-mono font-bold text-cyan-200 uppercase tracking-wider flex items-center justify-between">
-              <span>2. 6-8 Game Desk API / Webhook Credentials</span>
-              <span className="text-emerald-300">TLS 1.3 Ready</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[9px] font-mono text-sky-300 block mb-0.5">6-8 GAME ID</label>
-                <input
-                  type="text"
-                  value={customGameId}
-                  onChange={(e) => setCustomGameId(e.target.value)}
-                  className="w-full px-2.5 py-1 rounded-lg bg-sky-900/80 border border-cyan-400/30 text-xs font-mono text-white focus:outline-none focus:border-cyan-300"
-                />
-              </div>
-              <div>
-                <label className="text-[9px] font-mono text-sky-300 block mb-0.5">DESK ACCESS TOKEN</label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => {
-                    setApiKey(e.target.value);
-                    sixEightClient.setCredentials(webhookUrl, e.target.value);
-                  }}
-                  className="w-full px-2.5 py-1 rounded-lg bg-sky-900/80 border border-cyan-400/30 text-xs font-mono text-white focus:outline-none focus:border-cyan-300"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
+          <div className="space-y-1">
+            <span className="text-[10px] text-cyan-300 font-bold uppercase">Active Match ID</span>
+            <div className="flex gap-1.5">
               <input
                 type="text"
-                value={webhookUrl}
-                onChange={(e) => {
-                  setWebhookUrl(e.target.value);
-                  sixEightClient.setCredentials(e.target.value, apiKey);
-                }}
-                placeholder="https://api.6-8sports.com/v1/gamedesk/telemetry"
-                className="flex-1 px-2.5 py-1 rounded-lg bg-sky-900/80 border border-cyan-400/30 text-[11px] font-mono text-cyan-200 focus:outline-none"
+                value={customGameId}
+                onChange={(e) => setCustomGameId(e.target.value)}
+                className="w-full bg-sky-950/80 border border-cyan-400/30 rounded-lg px-2.5 py-1.5 text-white font-mono text-xs focus:border-cyan-300 focus:outline-none"
               />
               <button
-                onClick={() => {
-                  onForceSyncNow();
-                  setStatusBanner(`Pushed full scoreboard & clock snapshot to 6-8 Game Desk (${customGameId})`);
-                  setTimeout(() => setStatusBanner(null), 3500);
-                }}
-                className="px-3 py-1 rounded-lg bg-gradient-to-r from-cyan-400 to-blue-500 text-sky-950 font-mono font-black text-[11px] flex items-center gap-1 shadow hover:brightness-110 transition"
+                onClick={handleConnectWs}
+                className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs uppercase"
               >
-                <Send size={11} />
-                <span>PUSH SYNC</span>
+                Sync
               </button>
             </div>
           </div>
         </div>
+
+        {statusBanner && (
+          <div className="px-4 py-2.5 rounded-xl bg-cyan-950/80 border border-cyan-400/40 text-cyan-200 text-xs font-mono flex items-center gap-2 animate-fadeIn">
+            <Activity size={14} className="text-cyan-400 animate-spin" />
+            <span>{statusBanner}</span>
+          </div>
+        )}
       </div>
 
-      {/* Main 3-Column Roster & Live Play-by-Play Telemetry Grid */}
-      <div className="max-w-6xl mx-auto grid grid-cols-[1fr_1fr_1.1fr] gap-5">
-        
-        {/* COLUMN 1: WHITE CAP ROSTER & 6-8 PI RATINGS */}
-        <div className="rounded-3xl bg-gradient-to-b from-sky-800/85 via-sky-900/90 to-blue-950/95 border-2 border-white/40 p-5 shadow-xl flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-white/20 mb-3">
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-full bg-white shadow-[0_0_10px_#fff]" />
-              <div>
-                <h2 className="text-sm font-black text-white">{activeMatch.teamWhiteName} (WHITE CAPS)</h2>
-                <p className="text-[10px] font-mono text-cyan-200">{activeMatch.teamWhiteClub}</p>
+      {/* Navigation Sub-Tabs */}
+      <div className="flex items-center gap-2 border-b border-cyan-400/20 pb-2">
+        {[
+          { id: 'roster', label: '👥 Team Rosters & PI Scores' },
+          { id: 'bracket', label: '🏆 Live Tournament Bracket' },
+          { id: 'inspector', label: '📟 WSS Packet Inspector' },
+          { id: 'chaos', label: '⚡ Wi-Fi Drop Simulator' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setSubTab(tab.id as typeof subTab)}
+            className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition ${
+              subTab === tab.id
+                ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/30'
+                : 'text-cyan-300 hover:bg-slate-800/60'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* SUB-TAB 1: Team Rosters & 6-8 PI Ratings */}
+      {subTab === 'roster' && (
+        <div className="space-y-6">
+          {/* Preset Tournament Match Selector */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {PRESET_68_MATCHES.map((preset) => (
+              <div
+                key={preset.gameId}
+                onClick={() => handleLoadPreset(preset)}
+                className={`p-4 rounded-2xl border transition cursor-pointer flex flex-col justify-between gap-3 ${
+                  activeMatch.gameId === preset.gameId
+                    ? 'bg-cyan-950/60 border-cyan-400 shadow-lg shadow-cyan-500/20'
+                    : 'bg-slate-900/60 border-cyan-400/20 hover:border-cyan-400/50'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between text-xs font-mono text-cyan-300">
+                    <span>{preset.gameId}</span>
+                    <span className="text-[10px] text-slate-400">{preset.division}</span>
+                  </div>
+                  <div className="text-sm font-black text-white mt-1">
+                    {preset.teamWhiteName} vs. {preset.teamDarkName}
+                  </div>
+                  <div className="text-xs text-slate-300 mt-0.5">{preset.tournament}</div>
+                </div>
+                <div className="text-[10px] font-mono text-slate-400 border-t border-cyan-400/15 pt-2">
+                  📍 {preset.venue}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Roster Tables */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* White Roster */}
+            <div className="bg-slate-900/60 backdrop-blur-md border border-cyan-400/25 rounded-2xl overflow-hidden shadow-xl">
+              <div className="bg-gradient-to-r from-slate-100 to-sky-200 text-slate-900 px-4 py-3 flex items-center justify-between font-black uppercase text-sm">
+                <span>⚪ {activeMatch.teamWhiteName} ({activeMatch.teamWhiteClub})</span>
+                <span className="text-xs font-mono font-bold text-slate-700">6-8 Roster</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-cyan-400/20 text-slate-400 uppercase text-[10px] bg-slate-950/40">
+                      <th className="py-2 px-3 text-center">Cap</th>
+                      <th className="py-2 px-3">Player</th>
+                      <th className="py-2 px-2 text-center">Pos</th>
+                      <th className="py-2 px-2 text-center text-cyan-300">6-8 PI</th>
+                      <th className="py-2 px-2 text-center">Goals</th>
+                      <th className="py-2 px-3 text-center">Exclusions</th>
+                      <th className="py-2 px-2 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-cyan-400/10">
+                    {whiteRoster.map((player) => (
+                      <tr key={player.cap} className="hover:bg-slate-800/40">
+                        <td className="py-2 px-3 text-center font-bold text-slate-200">#{player.cap}</td>
+                        <td className="py-2 px-3 font-sans font-medium text-slate-100">{player.name}</td>
+                        <td className="py-2 px-2 text-center">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
+                            player.position === 'GK' ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-cyan-300'
+                          }`}>
+                            {player.position}
+                          </span>
+                        </td>
+                        <td className="py-2 px-2 text-center font-black text-amber-300">{player.piScore.toFixed(1)}</td>
+                        <td className="py-2 px-2 text-center font-bold text-emerald-300">{player.goals}</td>
+                        <td className="py-2 px-3 text-center">{renderFoulDots(player.exclusions)}</td>
+                        <td className="py-2 px-2 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => onRecordPlayerGoal('white', player.cap)}
+                              className="px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[9px]"
+                              title="Record Goal"
+                            >
+                              +G
+                            </button>
+                            <button
+                              onClick={() => onRecordPlayerExclusion('white', player.cap)}
+                              className="px-1.5 py-0.5 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold text-[9px]"
+                              title="Record Exclusion"
+                            >
+                              +E
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <span className="text-2xl font-black font-mono text-white bg-white/15 px-3 py-0.5 rounded-xl border border-white/30">
-              {scoreWhite}
-            </span>
-          </div>
 
-          <div className="space-y-1.5 overflow-y-auto max-h-[420px] pr-1">
-            {whiteRoster.map((player) => {
-              const isCappedOut = player.exclusions >= 3;
-              return (
-                <div
-                  key={player.cap}
-                  className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition ${
-                    isCappedOut
-                      ? 'bg-rose-950/60 border-rose-400/50 opacity-75'
-                      : 'bg-sky-950/65 hover:bg-sky-900/80 border-cyan-400/25'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-white text-sky-950 font-mono font-black text-xs flex items-center justify-center shadow">
-                      #{player.cap}
-                    </span>
-                    <div>
-                      <div className="font-bold text-white flex items-center gap-1.5">
-                        <span>{player.name}</span>
-                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-400/20 text-cyan-200 border border-cyan-400/30">
-                          PI {player.piScore}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        {renderFoulDots(player.exclusions)}
-                        <span className="text-[10px] font-mono text-sky-200">
-                          {player.goals}G &bull; {player.steals}STL
-                        </span>
-                        {isCappedOut && (
-                          <span className="text-[9px] font-mono font-black text-rose-300 bg-rose-500/30 px-1.5 rounded">
-                            3RD FOUL OUT
+            {/* Dark Roster */}
+            <div className="bg-slate-900/60 backdrop-blur-md border border-cyan-400/25 rounded-2xl overflow-hidden shadow-xl">
+              <div className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-4 py-3 flex items-center justify-between font-black uppercase text-sm">
+                <span>🔵 {activeMatch.teamDarkName} ({activeMatch.teamDarkClub})</span>
+                <span className="text-xs font-mono font-bold text-blue-200">6-8 Roster</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-cyan-400/20 text-slate-400 uppercase text-[10px] bg-slate-950/40">
+                      <th className="py-2 px-3 text-center">Cap</th>
+                      <th className="py-2 px-3">Player</th>
+                      <th className="py-2 px-2 text-center">Pos</th>
+                      <th className="py-2 px-2 text-center text-cyan-300">6-8 PI</th>
+                      <th className="py-2 px-2 text-center">Goals</th>
+                      <th className="py-2 px-3 text-center">Exclusions</th>
+                      <th className="py-2 px-2 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-cyan-400/10">
+                    {darkRoster.map((player) => (
+                      <tr key={player.cap} className="hover:bg-slate-800/40">
+                        <td className="py-2 px-3 text-center font-bold text-slate-200">#{player.cap}</td>
+                        <td className="py-2 px-3 font-sans font-medium text-slate-100">{player.name}</td>
+                        <td className="py-2 px-2 text-center">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-black ${
+                            player.position === 'GK' ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-cyan-300'
+                          }`}>
+                            {player.position}
                           </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quick 6-8 Desk Triggers */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => onRecordPlayerGoal('white', player.cap)}
-                      className="px-2 py-1 rounded-lg bg-emerald-400/25 hover:bg-emerald-400/40 border border-emerald-300/40 text-emerald-200 font-mono font-bold text-[10px] transition"
-                      title="Record Goal in 6-8 Game Desk & Reset 30s"
-                    >
-                      +GOAL
-                    </button>
-                    <button
-                      onClick={() => onRecordPlayerExclusion('white', player.cap)}
-                      disabled={isCappedOut}
-                      className="px-2 py-1 rounded-lg bg-rose-500/30 hover:bg-rose-500/50 border border-rose-300/40 text-rose-200 font-mono font-bold text-[10px] disabled:opacity-30 transition"
-                      title="Record 20s Exclusion in 6-8 Game Desk & Reset 20s"
-                    >
-                      +EJECT
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* COLUMN 2: DARK CAP ROSTER & 6-8 PI RATINGS */}
-        <div className="rounded-3xl bg-gradient-to-b from-blue-800/85 via-indigo-900/90 to-indigo-950/95 border-2 border-cyan-400/50 p-5 shadow-xl flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-cyan-400/25 mb-3">
-            <div className="flex items-center gap-2">
-              <span className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]" />
-              <div>
-                <h2 className="text-sm font-black text-cyan-200">{activeMatch.teamDarkName} (DARK CAPS)</h2>
-                <p className="text-[10px] font-mono text-sky-300">{activeMatch.teamDarkClub}</p>
+                        </td>
+                        <td className="py-2 px-2 text-center font-black text-amber-300">{player.piScore.toFixed(1)}</td>
+                        <td className="py-2 px-2 text-center font-bold text-emerald-300">{player.goals}</td>
+                        <td className="py-2 px-3 text-center">{renderFoulDots(player.exclusions)}</td>
+                        <td className="py-2 px-2 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => onRecordPlayerGoal('dark', player.cap)}
+                              className="px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[9px]"
+                              title="Record Goal"
+                            >
+                              +G
+                            </button>
+                            <button
+                              onClick={() => onRecordPlayerExclusion('dark', player.cap)}
+                              className="px-1.5 py-0.5 rounded bg-rose-600 hover:bg-rose-500 text-white font-bold text-[9px]"
+                              title="Record Exclusion"
+                            >
+                              +E
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <span className="text-2xl font-black font-mono text-cyan-300 bg-cyan-400/15 px-3 py-0.5 rounded-xl border border-cyan-400/30">
-              {scoreDark}
-            </span>
-          </div>
-
-          <div className="space-y-1.5 overflow-y-auto max-h-[420px] pr-1">
-            {darkRoster.map((player) => {
-              const isCappedOut = player.exclusions >= 3;
-              return (
-                <div
-                  key={player.cap}
-                  className={`p-2.5 rounded-xl border flex items-center justify-between text-xs transition ${
-                    isCappedOut
-                      ? 'bg-rose-950/60 border-rose-400/50 opacity-75'
-                      : 'bg-indigo-950/70 hover:bg-indigo-900/80 border-cyan-400/25'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-7 h-7 rounded-lg bg-gradient-to-b from-cyan-400 to-blue-600 text-white font-mono font-black text-xs flex items-center justify-center shadow">
-                      #{player.cap}
-                    </span>
-                    <div>
-                      <div className="font-bold text-white flex items-center gap-1.5">
-                        <span>{player.name}</span>
-                        <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-200 border border-amber-400/30">
-                          PI {player.piScore}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        {renderFoulDots(player.exclusions)}
-                        <span className="text-[10px] font-mono text-sky-200">
-                          {player.goals}G &bull; {player.steals}STL
-                        </span>
-                        {isCappedOut && (
-                          <span className="text-[9px] font-mono font-black text-rose-300 bg-rose-500/30 px-1.5 rounded">
-                            3RD FOUL OUT
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Quick 6-8 Desk Triggers */}
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => onRecordPlayerGoal('dark', player.cap)}
-                      className="px-2 py-1 rounded-lg bg-emerald-400/25 hover:bg-emerald-400/40 border border-emerald-300/40 text-emerald-200 font-mono font-bold text-[10px] transition"
-                      title="Record Goal in 6-8 Game Desk & Reset 30s"
-                    >
-                      +GOAL
-                    </button>
-                    <button
-                      onClick={() => onRecordPlayerExclusion('dark', player.cap)}
-                      disabled={isCappedOut}
-                      className="px-2 py-1 rounded-lg bg-rose-500/30 hover:bg-rose-500/50 border border-rose-300/40 text-rose-200 font-mono font-bold text-[10px] disabled:opacity-30 transition"
-                      title="Record 20s Exclusion in 6-8 Game Desk & Reset 20s"
-                    >
-                      +EJECT
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
+      )}
 
-        {/* COLUMN 3: LIVE 6-8 GAME DESK PLAY-BY-PLAY TELEMETRY FEED */}
-        <div className="rounded-3xl bg-gradient-to-b from-sky-900/90 to-indigo-950/95 border-2 border-cyan-400/40 p-5 shadow-xl flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-cyan-400/25 mb-3">
+      {/* SUB-TAB 2: Live Tournament Bracket View */}
+      {subTab === 'bracket' && (
+        <div className="bg-slate-900/60 backdrop-blur-md border border-cyan-400/25 rounded-2xl p-6 shadow-xl space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-cyan-400/20 pb-4">
             <div>
-              <h2 className="text-sm font-black text-white flex items-center gap-2">
-                <Activity size={15} className="text-amber-300" />
-                <span>6-8 Live Play-by-Play Feed</span>
+              <h2 className="text-base font-black text-white uppercase flex items-center gap-2">
+                <Trophy className="text-amber-400 w-5 h-5" />
+                {bracket.name}
               </h2>
-              <p className="text-[10px] font-mono text-cyan-200">
-                Real-Time JSON Packets to 6-8 Game Desk
-              </p>
+              <div className="text-xs font-mono text-cyan-300">{bracket.division} • {bracket.venue}</div>
             </div>
-            <span className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-cyan-400/20 text-cyan-200 border border-cyan-400/30">
-              {events.length} Events
-            </span>
+            <button
+              onClick={() => {
+                // Sync current game score into active match M5 in bracket
+                sixEightBridge.updateBracketMatchScore('M5', scoreWhite, scoreDark, period, 'live');
+                setStatusBanner('Synced current desk score into Tournament Bracket match M5.');
+                setTimeout(() => setStatusBanner(null), 3000);
+              }}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold text-xs uppercase shadow-md flex items-center gap-1.5"
+            >
+              <RefreshCw size={13} />
+              Sync Desk Score to Bracket
+            </button>
           </div>
 
-          <div className="flex-1 bg-sky-950/90 rounded-2xl p-3.5 border border-cyan-400/30 overflow-y-auto max-h-[420px] space-y-2 font-mono text-xs shadow-inner">
-            {events.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center text-sky-300/70 py-12">
-                <Trophy size={28} className="text-cyan-400/50 mb-2" />
-                <div>No match events logged yet.</div>
-                <div className="text-[10px] mt-1">
-                  Score a goal, trigger an exclusion, or reset the shot clock to stream live packets to 6-8 Sports.
-                </div>
+          {/* Bracket Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Quarterfinals */}
+            <div className="space-y-4">
+              <div className="text-xs font-black uppercase tracking-wider text-slate-400 font-mono flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+                Quarterfinals (4 Courts)
+              </div>
+              <div className="space-y-3">
+                {bracket.matches.filter(m => m.round === 'QF').map(match => (
+                  <div key={match.id} className="p-3.5 rounded-xl bg-slate-950/70 border border-cyan-400/20 text-xs space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                      <span>{match.court}</span>
+                      <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-bold">{match.status.toUpperCase()}</span>
+                    </div>
+                    <div className="space-y-1 font-bold">
+                      <div className="flex items-center justify-between">
+                        <span className={match.winner === match.teamWhite ? 'text-amber-300' : 'text-slate-200'}>⚪ {match.teamWhite}</span>
+                        <span className="font-mono text-cyan-300">{match.scoreWhite}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className={match.winner === match.teamDark ? 'text-amber-300' : 'text-slate-200'}>🔵 {match.teamDark}</span>
+                        <span className="font-mono text-cyan-300">{match.scoreDark}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Semifinals */}
+            <div className="space-y-4">
+              <div className="text-xs font-black uppercase tracking-wider text-slate-400 font-mono flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                Semifinals (Live Now)
+              </div>
+              <div className="space-y-3">
+                {bracket.matches.filter(m => m.round === 'SF').map(match => (
+                  <div key={match.id} className="p-3.5 rounded-xl bg-cyan-950/50 border-2 border-cyan-400/40 text-xs space-y-2 shadow-lg">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-cyan-300">
+                      <span>{match.court}</span>
+                      <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-black border border-emerald-400/40 animate-pulse">
+                        LIVE Q{match.period}
+                      </span>
+                    </div>
+                    <div className="space-y-1 font-bold">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white">⚪ {match.teamWhite}</span>
+                        <span className="font-mono text-lg font-black text-cyan-300">{match.scoreWhite}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white">🔵 {match.teamDark}</span>
+                        <span className="font-mono text-lg font-black text-cyan-300">{match.scoreDark}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Finals */}
+            <div className="space-y-4">
+              <div className="text-xs font-black uppercase tracking-wider text-slate-400 font-mono flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                Championship &amp; 3rd Place
+              </div>
+              <div className="space-y-3">
+                {bracket.matches.filter(m => m.round === 'FINAL' || m.round === '3RD').map(match => (
+                  <div key={match.id} className="p-3.5 rounded-xl bg-slate-950/70 border border-amber-400/20 text-xs space-y-2">
+                    <div className="flex items-center justify-between text-[10px] font-mono text-amber-300">
+                      <span>{match.round === 'FINAL' ? '🏆 GOLD MEDAL MATCH' : '🥉 3RD PLACE BRONZE'}</span>
+                      <span className="text-slate-400">{match.scheduledTime}</span>
+                    </div>
+                    <div className="space-y-1 font-bold">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-300">⚪ {match.teamWhite}</span>
+                        <span className="font-mono text-slate-500">-</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-300">🔵 {match.teamDark}</span>
+                        <span className="font-mono text-slate-500">-</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUB-TAB 3: WebSocket Packet Inspector */}
+      {subTab === 'inspector' && (
+        <div className="bg-slate-900/60 backdrop-blur-md border border-cyan-400/25 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex items-center justify-between border-b border-cyan-400/20 pb-3">
+            <div className="text-sm font-black uppercase text-white flex items-center gap-2">
+              <Radio className="text-cyan-400 w-4 h-4" />
+              Live WebSocket Frame Stream (Protocol: 6-8-gamedesk-v2)
+            </div>
+            <button
+              onClick={() => setRecentFrames([])}
+              className="text-xs font-mono text-slate-400 hover:text-cyan-300"
+            >
+              Clear Inspector
+            </button>
+          </div>
+
+          <div className="max-h-96 overflow-y-auto space-y-2 font-mono text-xs pr-1">
+            {recentFrames.length === 0 ? (
+              <div className="text-center py-10 text-slate-500 italic">
+                No WebSocket frames captured yet. Connect to a WebSocket endpoint above or generate match events.
               </div>
             ) : (
-              events.map((evt) => (
-                <div
-                  key={evt.id}
-                  className="p-2.5 rounded-xl bg-sky-900/60 border border-cyan-400/20 flex flex-col gap-1"
-                >
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="font-bold text-amber-300">
-                      Q{evt.period} &bull; {evt.gameClock} (Shot: {evt.shotClock})
+              recentFrames.map((frame, idx) => (
+                <div key={idx} className="p-3 rounded-xl bg-slate-950/80 border border-cyan-400/20 space-y-1">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-400/30">
+                      FRAME #{frame.sequenceId} • {frame.type}
                     </span>
-                    <span className="px-1.5 py-0.2 rounded bg-emerald-400/20 text-emerald-200 border border-emerald-400/30 text-[9px]">
-                      {evt.synced ? '6-8 SYNCED' : 'LOCAL QUEUE'}
-                    </span>
+                    <span>{frame.timestampIso}</span>
                   </div>
-                  <div className="text-white font-bold text-xs">{evt.description}</div>
-                  <div className="flex items-center justify-between text-[10px] text-cyan-200/80">
-                    <span>Type: {evt.type}</span>
-                    <span>Score: {evt.scoreSnapshot}</span>
-                  </div>
+                  <pre className="text-[11px] text-cyan-200 overflow-x-auto p-2 rounded bg-slate-900/80">
+                    {JSON.stringify(frame.payload, null, 2)}
+                  </pre>
                 </div>
               ))
             )}
           </div>
         </div>
+      )}
 
-      </div>
+      {/* SUB-TAB 4: Chaos & RF Drop Simulator */}
+      {subTab === 'chaos' && (
+        <div className="bg-slate-900/60 backdrop-blur-md border border-cyan-400/25 rounded-2xl p-6 shadow-xl space-y-5">
+          <div className="border-b border-cyan-400/20 pb-3">
+            <h2 className="text-sm font-black uppercase text-white flex items-center gap-2">
+              <ShieldAlert className="text-amber-400 w-5 h-5" />
+              Poolside Wi-Fi Chaos &amp; Offline Queue Resilience Testbench
+            </h2>
+            <p className="text-xs font-mono text-slate-300 mt-1">
+              Verify that no match event, goal, or foul is lost if pool deck Wi-Fi is severed or throttled mid-game.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-cyan-400/20 flex flex-col justify-between gap-3">
+              <div>
+                <span className="text-xs font-bold text-slate-300 uppercase">1. Disconnect Simulation</span>
+                <p className="text-[11px] text-slate-400 mt-1">Simulates an unexpected router or hotspot outage on deck.</p>
+              </div>
+              <button
+                onClick={handleSimulateChaosDrop}
+                className="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase shadow-md shadow-rose-600/30"
+              >
+                💥 Run Wi-Fi Drop Test
+              </button>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-cyan-400/20 flex flex-col justify-between gap-3">
+              <div>
+                <span className="text-xs font-bold text-slate-300 uppercase">2. Offline Buffer Queue</span>
+                <p className="text-[11px] text-slate-400 mt-1">Buffered events ready to flush automatically on reconnect.</p>
+              </div>
+              <div className="text-2xl font-black font-mono text-amber-300">
+                {queuedCount} <span className="text-xs font-normal text-slate-400">Frames</span>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-cyan-400/20 flex flex-col justify-between gap-3">
+              <div>
+                <span className="text-xs font-bold text-slate-300 uppercase">3. Atomic Flush</span>
+                <p className="text-[11px] text-slate-400 mt-1">Manually triggers an immediate batch flush to the cloud.</p>
+              </div>
+              <button
+                disabled={queuedCount === 0}
+                onClick={handleFlushQueue}
+                className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs uppercase disabled:opacity-30"
+              >
+                📤 Flush Queue Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

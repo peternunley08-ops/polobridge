@@ -34,6 +34,7 @@ import {
   SixEightSyncMode,
   sixEightClient,
 } from './engine/six-eight-sports';
+import { sixEightBridge } from './engine/six-eight-bridge';
 
 // --- Web Audio Synthesizer (Pool Horn & Mechanical Clicks) ---
 class SoundEngine {
@@ -730,6 +731,7 @@ export default function App() {
     };
     setSixEightEvents(prev => [newEvt, ...prev.slice(0, 49)]);
     sixEightClient.dispatchEvent(newEvt, active68Match.gameId, sixEightMode);
+    sixEightBridge.publishEvent(newEvt);
   };
 
   // Select Period (Q1-Q4 = 8:00, OT1/OT2 = 3:00, PSO = Shootout)

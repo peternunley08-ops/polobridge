@@ -42,6 +42,7 @@ jobs:
           python3 tests/test_digital_scoresheet.py
           python3 tests/test_tournament_director.py
           python3 tests/test_agent_definitions.py
+          python3 tests/test_six_eight_bridge.py
 
       - name: Set up Node.js 20 LTS
         uses: actions/setup-node@v4

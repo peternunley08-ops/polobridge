@@ -26,6 +26,7 @@ updated: 2026-11-10
 7. **Offline Resilience, Dual-Layer IndexedDB & BLE Auto-Reconnect**: [[07_Offline_Resilience_and_IndexedDB]]
 8. **Digital Scoresheet, Team Rosters & Rule WP 22.3 Cap-Out**: [[08_Digital_Scoresheet_and_Rosters]]
 9. **Tournament Director 4-Court Dashboard & Court Link**: [[09_Tournament_Director_and_Court_Link]]
+10. **Live 6-8 Sports Cloud Sync & WebSocket Bridge**: [[10_Six_Eight_Sports_Cloud_and_WebSocket_Bridge]]
 
 ## Installed 10-Skill Agentic Engineering Stack
 - `frontend-design` — Anti-slop Sunlit Olympic Pool UI architecture

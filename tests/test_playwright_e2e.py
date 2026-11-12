@@ -130,6 +130,19 @@ class TestPlaywrightE2EProductionBundle(unittest.TestCase):
                 break
         self.assertTrue(found_director, "Tournament Director dashboard and court link must be compiled into production bundle")
 
+    def test_08_six_eight_bridge_bundle(self):
+        assets_dir = os.path.join(DIST_DIR, "assets")
+        js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
+        found_bridge = False
+        for jf in js_files:
+            with open(os.path.join(assets_dir, jf), encoding="utf-8") as f:
+                content = f.read()
+            if "6-8-gamedesk-v2" in content and "polopad_68sports_bridge" in content:
+                found_bridge = True
+                break
+        self.assertTrue(found_bridge, "6-8 Sports Cloud Sync & WebSocket Bridge must be compiled into production bundle")
+
+
 
 if __name__ == "__main__":
     suite = unittest.defaultTestLoader.loadTestsFromModule(__import__(__name__))
