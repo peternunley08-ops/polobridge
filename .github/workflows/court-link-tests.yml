@@ -10,6 +10,7 @@ on:
       - 'cloudflare/court-relay/**'
       - 'tests/**'
       - 'scripts/**'
+      - '.claude/agents/**'
       - '.github/workflows/court-link-tests.yml'
   workflow_dispatch:
 
@@ -46,6 +47,7 @@ jobs:
           python3 tests/test_offline_persistence.py
           python3 tests/test_digital_scoresheet.py
           python3 tests/test_tournament_director.py
+          python3 tests/test_agent_definitions.py
 
       - name: Set up Node.js 20 LTS
         uses: actions/setup-node@v4
