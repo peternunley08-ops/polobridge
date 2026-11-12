@@ -1,4 +1,4 @@
-name: Deploy PoloPad Pro iOS PWA & Run Hardware DRC Suite
+name: PoloBridge CI — Hardware DRC, Rules QA & Vite Production Build
 
 on:
   push:
@@ -60,24 +60,3 @@ jobs:
       - name: Run Playwright E2E Production Bundle & Download Verification
         run: |
           python3 tests/test_playwright_e2e.py
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload GitHub Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'react_app/dist'
-
-  deploy:
-    name: Publish to GitHub Pages (https://peternunley08-ops.github.io/polobridge/)
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: qa-and-build
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        continue-on-error: true
-        uses: actions/deploy-pages@v4
