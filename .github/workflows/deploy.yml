@@ -44,6 +44,7 @@ jobs:
           python3 tests/test_agent_definitions.py
           python3 tests/test_six_eight_bridge.py
           python3 tests/test_audio_synthesizer.py
+          python3 tests/test_broadcast_overlay.py
 
       - name: Set up Node.js 20 LTS
         uses: actions/setup-node@v4

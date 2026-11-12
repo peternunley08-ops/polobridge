@@ -154,6 +154,18 @@ class TestPlaywrightE2EProductionBundle(unittest.TestCase):
                 break
         self.assertTrue(found_audio, "Audio synthesizer and pool deck voice announcer must be compiled into production bundle")
 
+    def test_10_broadcast_overlay_bundle(self):
+        assets_dir = os.path.join(DIST_DIR, "assets")
+        js_files = [f for f in os.listdir(assets_dir) if f.endswith(".js")]
+        found_overlay = False
+        for jf in js_files:
+            with open(os.path.join(assets_dir, jf), encoding="utf-8") as f:
+                content = f.read()
+            if "polopad_broadcast_stream" in content and "Olympic Ribbon" in content:
+                found_overlay = True
+                break
+        self.assertTrue(found_overlay, "Broadcast scorebug and OBS overlay must be compiled into production bundle")
+
 
 
 if __name__ == "__main__":

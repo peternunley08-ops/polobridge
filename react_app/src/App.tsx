@@ -37,6 +37,8 @@ import {
 import { sixEightBridge } from './engine/six-eight-bridge';
 import { AudioAnnouncerPanel } from './components/audio-announcer-panel';
 import { audioSynthesizer } from './engine/audio-synthesizer';
+import { BroadcastOverlayPanel } from './components/broadcast-overlay-panel';
+import { broadcastManager } from './engine/broadcast-manager';
 
 // --- Web Audio Synthesizer (Pool Horn & Mechanical Clicks) ---
 class SoundEngine {
@@ -1862,68 +1864,21 @@ export default function App() {
 
         {/* VIEW D: LIVE OBS BROADCAST SCOREBUG OVERLAY */}
         {activeTab === 'overlay' && (
-          <div className="flex-1 p-8 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-600/30 via-sky-900 to-indigo-950 space-y-6">
-            <div className="w-full max-w-4xl p-6 rounded-2xl bg-sky-950/80 backdrop-blur-xl border-2 border-cyan-400/40 shadow-2xl space-y-4">
-              <div className="flex justify-between items-center pb-3 border-b border-cyan-400/25">
-                <span className="text-xs font-mono text-cyan-300 font-bold uppercase tracking-wider">
-                  🔴 Live Broadcast Scorebug Stream Overlay (OBS / vMix / Hudl)
-                </span>
-                <span className="text-xs font-mono text-sky-200">http://ipad-ip:8080/overlay</span>
-              </div>
-
-              {/* Television Graphic Representation */}
-              <div className="p-8 rounded-2xl bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-cyan-500/30 via-blue-900 to-indigo-950 border border-cyan-300/30 flex flex-col items-center justify-center gap-3">
-                
-                <div className="h-14 rounded-2xl bg-gradient-to-r from-sky-900/95 via-blue-950/95 to-indigo-950/95 border-2 border-cyan-300/50 shadow-2xl flex items-center overflow-hidden font-mono">
-                  {/* White Team */}
-                  <div className="flex items-center px-4 gap-3 bg-white/15 h-full">
-                    <span className="w-3 h-3 rounded-full bg-white shadow-md" />
-                    <span className="font-black text-sm text-white">{teamWhiteName.toUpperCase()}</span>
-                    <span className="text-2xl font-black text-white px-2 py-0.5 rounded bg-sky-950/60">{scoreWhite}</span>
-                  </div>
-
-                  {/* Period */}
-                  <div className="px-3 bg-sky-950/80 text-xs font-bold text-cyan-300 h-full flex items-center">
-                    {periodLabel(period)}
-                  </div>
-
-                  {/* Dark Team */}
-                  <div className="flex items-center px-4 gap-3 bg-blue-800/50 h-full">
-                    <span className="text-2xl font-black text-cyan-300 px-2 py-0.5 rounded bg-sky-950/60">{scoreDark}</span>
-                    <span className="font-black text-sm text-cyan-200">{teamDarkName.toUpperCase()}</span>
-                    <span className="w-3 h-3 rounded-full bg-cyan-400 shadow-md" />
-                  </div>
-
-                  {/* Master Game Clock */}
-                  <div className="px-4 text-cyan-300 text-lg font-black bg-sky-950/90 h-full flex items-center">
-                    {formatMinSec(gameTimeMs)}
-                  </div>
-
-                  {/* Shot Clock */}
-                  <div className={`px-4 text-xl font-black h-full flex items-center ${isBlanked ? 'text-sky-700 bg-sky-950' : (shotSec <= 5 ? 'text-rose-400 bg-rose-950/80' : 'text-amber-300 bg-amber-900/50')}`}>
-                    :{isBlanked ? '--' : `${shotSec}`}
-                  </div>
-                </div>
-
-                {/* Power-Play Exclusion Sub-Bar */}
-                {exclusions.length > 0 && (
-                  <div className="flex items-center gap-2 px-4 py-1 rounded-full bg-rose-600/80 border border-rose-300/50 text-xs font-mono font-bold text-white shadow">
-                    <span>⚡ POWER PLAY:</span>
-                    {exclusions.map(e => (
-                      <span key={e.id}>
-                        {e.team === 'white' ? teamWhiteName : teamDarkName} #{e.cap} ({e.remaining.toFixed(0)}s)
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-              </div>
-
-              <p className="text-xs text-sky-200 leading-relaxed text-center">
-                Add this URL directly into OBS Studio or vMix as a <strong>Browser Source</strong> with transparent background.
-              </p>
-            </div>
-          </div>
+          <BroadcastOverlayPanel
+            currentGameState={{
+              gameTimeMs,
+              shotTimeMs,
+              isRunning,
+              period,
+              scoreWhite,
+              scoreDark,
+              teamWhiteName,
+              teamDarkName,
+              exclusions,
+              activeTimeout,
+            }}
+            onBackToConsole={() => setActiveTab('console')}
+          />
         )}
 
         {/* VIEW E: PHYSICAL DECK HARDWARE SIMULATOR & RS-232 BUS */}

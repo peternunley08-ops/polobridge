@@ -70,6 +70,12 @@
    - **Web Speech API Announcer**: Automatic spoken callouts for goals (score recitation), exclusions (cap number and 20s duration), Rule WP 22.3 cap-out (3 personal fouls), timeout 15s warning, and shot clock violation.
    - **SoundEngine Integration**: Unified routing through `audioSynthesizer` with master volume, timbre switching, and `polopad_audio_settings` persistence.
    - **Tests**: `tests/test_audio_synthesizer.py` (5 architecture tests), `tests/test_playwright_e2e.py` (`test_09_audio_synthesizer_bundle`).
+13. **Live OBS & vMix Broadcast Scorebug Stream Overlay Suite (`broadcast-manager.ts`, `broadcast-overlay-panel.tsx`)**:
+   - **Themes**: 4 television graphics themes (Olympic Ribbon, ESPN Lower-Third, Hudl Stream Pill, Minimal Bug).
+   - **Chroma & Transparency**: Transparent alpha channel, green screen (`#00FF00`), and blue screen (`#0000FF`).
+   - **Broadcast Features**: 100ms synchronized clocks, Rule WP 20.15 shot clock auto-blanking, power-play exclusion sub-bar, sponsor/tournament banner ticker, and goal splash animation.
+   - **Inter-Tab Sync**: BroadcastChannel `polopad_broadcast_stream` continuously mirrors console state to OBS browser sources.
+   - **Tests**: `tests/test_broadcast_overlay.py` (5 architecture tests), `tests/test_playwright_e2e.py` (`test_10_broadcast_overlay_bundle`).
 
 ---
 
